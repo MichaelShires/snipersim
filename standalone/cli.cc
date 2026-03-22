@@ -10,6 +10,7 @@
 #include "config/config_resolver.h"
 #include "sniper_exception.h"
 #include "report.h"
+#include "merge_llc.h"
 
 extern int run_simulator(int argc, char* argv[]);
 
@@ -317,8 +318,19 @@ int main(int argc, char** argv) {
       report->add_option("-d,--dir", results_dir, "Results directory (default: .)");
       report->add_option("-o,--output", output_file, "Output file (default: sim.out)");
 
+      auto merge_llc = app.add_subcommand("merge-llc", "Merge LLC fusion edge CSVs with weights");
+      std::vector<double> merge_weights;
+      std::vector<std::string> merge_inputs;
+      std::string merge_output = "final_weighted_edges.csv";
+      merge_llc->add_option("-w,--weights", merge_weights, "Weights for each input file")->required();
+      merge_llc->add_option("-i,--inputs", merge_inputs, "Input CSV files")->required();
+      merge_llc->add_option("-o,--output", merge_output, "Output CSV file (default: final_weighted_edges.csv)");
+
       CLI11_PARSE(app, argc, argv);
-      if (app.got_subcommand(run)) {
+      if (app.got_subcommand(merge_llc)) {
+         run_merge_llc(merge_weights, merge_inputs, merge_output);
+         return 0;
+      } else if (app.got_subcommand(run)) {
          // Prepare args for run_simulator
          std::vector<char*> c_args;
          c_args.push_back(argv[0]);

@@ -72,3 +72,31 @@ If simulation fails with "Unable to resolve tool path", run:
 ```
 This ensures the SDE/Pin SIFT recorder tools are locally available in the project root.
 
+
+## 🔬 Research Workflows: LLC Miss Dependency Tracking (Fusion Edges)
+
+Sniper includes a native, high-performance capability to track instruction dependencies leading up to Last Level Cache (LLC) misses. This allows you to generate back-slice dependency graphs and find the most commonly executed producer-consumer instruction pairs (fusion edges) prior to long latency loads, enabling research into macro-fusion.
+
+The C++ tracer uses O(1) producer lookup maps, meaning it can guarantee a deep tree search (up to 5 instructions deep within a 4096 instruction rolling window) **without slowing down the simulation**.
+
+### 1. Generating Fusion Edges for a Simpoint
+To generate the fusion edge data for a specific run, simply add the `instruction_tracer` configuration flag. The simulator will automatically aggregate the graph in-memory and dump it to a CSV at the end of the run.
+
+```bash
+./build/sniper sim -c gainestown -g --instruction_tracer/type=llc -- workloads/my_simpoint
+```
+This will produce a file named `llc_fusion_edges.csv` in your output directory.
+
+### 2. Merging Weighted Simpoints
+If you have run multiple simpoints and need to merge their fusion edge dictionaries based on their representative weights, you can use the native `merge-llc` subcommand. 
+
+For example, if you have two simpoints (`simpoint_A` with a weight of 0.7, and `simpoint_B` with a weight of 0.3):
+
+```bash
+./build/sniper merge-llc \
+    --weights 0.7 0.3 \
+    --inputs simpoint_A/llc_fusion_edges.csv simpoint_B/llc_fusion_edges.csv \
+    --output final_weighted_edges.csv
+```
+
+This will parse the native CSV files, apply the weights mathematically, merge identical edges, and output a final, globally sorted list of the most valuable fusion candidates across your entire workload.

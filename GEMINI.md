@@ -200,6 +200,20 @@ This document outlines the roadmap for modernizing the Sniper simulator infrastr
 - [x] Implement a static registration factory for architectural models (Caches, Branch Predictors).
 - [x] Remove hardcoded switch statements for component instantiation.
 
+## Phase 16: Advanced LLC Macro-Fusion Research (Planned)
+
+- **Goal:** Enhance instruction dependency tracking for macro-fusion research.
+
+- [ ] **Track Basic Block & Cache Line Boundaries:** Filter edges that cross taken branches or fetch block boundaries.
+
+- [ ] **Differentiate Addressing Modes:** Include memory operand type (Base, Base+Disp, etc.) in the EdgeKey.
+
+- [ ] **Weight by Stall Criticality:** Accumulate ROB stall cycles instead of simple frequencies for LLC misses.
+
+- [ ] **APX-Specific Dimensions:** Track NDD and EGPR (r16-r31) usage in fused instructions to model register file port pressure.
+
+- [ ] **Forward-Slice (Consumer) Fusion:** Implement Load-Use fusion tracking (traverse forward from load to consumer).
+
 ## Execution History
 - **2026-03-21:** Professional QA & Performance Guardrails (Phase 12) completed.
 - **2026-03-21:** Phase 13: Enterprise Hardening (Dependency Injection & SIFT Integrity) completed.

@@ -5,28 +5,23 @@
 #include "instruction_tracer.h"
 #include <deque>
 #include <vector>
+#include <unordered_map>
+#include <map>
+#include <string>
 
 class Core;
 
 class InstructionTracerLLC : public InstructionTracer
 {
  public:
-   struct MemAccess
-   {
-      IntPtr addr;
-      bool is_load;
-      bool is_store;
-   };
    struct InstInfo
    {
+      uint64_t seq_id;
       IntPtr ip;
       String disassembly;
+      String opcode;
+      std::vector<uint64_t> producers;
       bool is_miss;
-      // Store registers to help building the producer/consumer tree later
-      std::vector<uint32_t> src_regs;
-      std::vector<uint32_t> dst_regs;
-      // Memory info
-      std::vector<MemAccess> mem_accesses;
    };
 
    InstructionTracerLLC(const Core *core);
@@ -37,11 +32,32 @@ class InstructionTracerLLC : public InstructionTracer
  private:
    const Core *m_core;
    uint32_t m_window_size;
+   uint64_t m_current_seq_id;
 
-   std::deque<InstInfo> m_history;
+   std::unordered_map<uint64_t, InstInfo> m_history;
+   std::deque<uint64_t> m_seq_queue;
 
-   void printTrace();
-   void printTree(int index, int depth, uint32_t target_reg, IntPtr target_addr);
+   // O(1) tracking structures
+   std::unordered_map<uint32_t, uint64_t> last_reg_writer;
+   std::unordered_map<IntPtr, uint64_t> last_mem_store;
+
+   struct EdgeKey {
+       std::string parent_opcode;
+       std::string child_opcode;
+       int64_t ip_dist;
+
+       bool operator<(const EdgeKey& o) const {
+           if (parent_opcode != o.parent_opcode) return parent_opcode < o.parent_opcode;
+           if (child_opcode != o.child_opcode) return child_opcode < o.child_opcode;
+           return ip_dist < o.ip_dist;
+       }
+   };
+
+   std::map<EdgeKey, uint64_t> m_edge_histogram;
+
+   void traverseGraph(uint64_t seq_id, int depth, const InstInfo& original_miss);
+   void addEdge(const InstInfo& parent, const InstInfo& child);
+   void dumpEdges();
 };
 
 #endif // __INSTRUCTION_TRACER_LLC_H
