@@ -2,17 +2,18 @@
 #define __THREAD_INFO_H
 
 #include "globals.h"
-#include "sift_writer.h"
 #include "onlinebbv_count.h"
+#include "sift_writer.h"
 
 #include "pin.H"
 #include <deque>
 
-typedef struct {
+typedef struct
+{
    Sift::Writer *output;
    UINT64 dyn_addresses[Sift::MAX_DYNAMIC_ADDRESSES];
    UINT32 num_dyn_addresses;
-   Bbv *bbv;
+   OnlineBbv *bbv;
    UINT64 thread_num;
    ADDRINT bbv_base;
    UINT64 bbv_count;
@@ -34,7 +35,7 @@ typedef struct {
    BOOL running;
    BOOL should_send_threadinfo;
    Sift::EmuReply cpuid_vals;
-} __attribute__((packed,aligned(LINE_SIZE_BYTES))) thread_data_t;
+} __attribute__((packed, aligned(LINE_SIZE_BYTES))) thread_data_t;
 
 extern thread_data_t *thread_data;
 

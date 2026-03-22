@@ -657,7 +657,11 @@ if tracegen:
     sys.stdout.flush()
     sys.stderr.flush()
     time.sleep(1)
-    subprocess.Popen(tracecmd).communicate()
+    proc = subprocess.Popen(tracecmd)
+    proc.communicate()
+    if proc.returncode != 0:
+      print('[SNIPER] Frontend process failed with return code %d' % proc.returncode)
+      os._exit(1)
   if pinplay_addrtrans:
     trace_extra_args += [ '--pinplay-addr-trans' ]
   if frontend:
@@ -682,8 +686,11 @@ config = {}
 exec(compile(open(configfile, "rb").read(), configfile, 'exec'), {}, config)
 
 # convert paths in config to absolute paths
-for d in ('pin_home','xed_home', 'torch_home'):
-  absdir = os.path.join(HOME, config[d])
+for d in ('sde_home', 'pin_home','xed_home', 'torch_home'):
+  if os.path.isabs(config[d]):
+    absdir = config[d]
+  else:
+    absdir = os.path.join(HOME, config[d])
   if not os.path.isdir(absdir):
     sys.stderr.write('Cannot find %s %s, please check %s\n' % (d, absdir, configfile))
     sys.exit(-1)
@@ -698,7 +705,7 @@ pin_version = 'unknown'
 pinoptions = ''
 if not standalone:
   try:
-    pin_version = subprocess.Popen(['%(HOME)s/tools/pinversion.py' % locals(), pin_home], stdout = subprocess.PIPE).communicate()[0]
+    pin_version = subprocess.Popen(['%(HOME)s/tools/pinversion.py' % locals(), pin_home], stdout = subprocess.PIPE).communicate()[0].decode('utf-8')
     pin_version = int(pin_version.split('.')[2])
     assert 10000 < pin_version < 1000000
   except Exception as e:
@@ -772,13 +779,16 @@ if standalone:
     gdbcmd = '%(use_wrap_sim)s ' % locals()
   else:
     gdbcmd = ''
-  cmd = gdbcmd + '%(HOME)s/lib/sniper' % locals() + optcmd
+  cmd = gdbcmd + '%(HOME)s/lib/sniper run' % locals() + optcmd
 else:
   if follow_execv:
     pintool = 'follow_execv'
   else:
     pintool = 'pin_sim'
-  cmd = '%(pin_home)s/%(arch)s/bin/pinbin %(pinoptions)s -t %(sim_root)s/lib/%(pintool)s' % locals() + optcmd + ' -- ' + ' '.join(cmdline)
+  if 'sde_home' in locals() and not use_pinplay:
+    cmd = '%(sde_home)s/sde64 %(sde_arch)s %(pinoptions)s -t64 %(sim_root)s/lib/%(pintool)s.so' % locals() + optcmd + ' -- ' + ' '.join(cmdline)
+  else:
+    cmd = '%(pin_home)s/%(arch)s/bin/pinbin %(pinoptions)s -t %(sim_root)s/lib/%(pintool)s.so' % locals() + optcmd + ' -- ' + ' '.join(cmdline)
 
 queue = queue.Queue()
 

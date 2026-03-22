@@ -1,8 +1,8 @@
 #include "topology_info.h"
-#include "simulator.h"
 #include "config.h"
 #include "config.hpp"
 #include "core_manager.h"
+#include "simulator.h"
 
 #define VERBOSE 0
 
@@ -33,8 +33,7 @@ void TopologyInfo::setup(UInt32 smt_cores, UInt32 llc_sharers)
    // Due to heterogeneity, we cannot directly compute our package #
    // Assume cores are initialized in-order, and figure out where the previous cores are
    LOG_ASSERT_ERROR(s_core_id_last == core_id - 1, "Cores not initialized in order");
-   if (s_cores_this_package == 0)
-   {
+   if (s_cores_this_package == 0) {
       // First core of a new package
       ++s_package;
       s_cores_this_package = cores_per_package * smt_count;
@@ -44,10 +43,12 @@ void TopologyInfo::setup(UInt32 smt_cores, UInt32 llc_sharers)
    this->package = s_package;
 
    LOG_ASSERT_ERROR(smt_cores <= (1 << SMT_SHIFT_BITS), "Too many smt_cores, increase SMT_SHIFT_BITS");
-   LOG_ASSERT_ERROR((cores_per_package << SMT_SHIFT_BITS) <= (1 << PACKAGE_SHIFT_BITS), "Too many cores_per_package, increase PACKAGE_SHIFT_BITS");
+   LOG_ASSERT_ERROR((cores_per_package << SMT_SHIFT_BITS) <= (1 << PACKAGE_SHIFT_BITS),
+                    "Too many cores_per_package, increase PACKAGE_SHIFT_BITS");
    this->apic_id = (this->package << PACKAGE_SHIFT_BITS) | (this->core_index << SMT_SHIFT_BITS) | this->smt_index;
 
-   #if VERBOSE
-   printf("CORE %d: SMT %d/%d CORE %d/%d PACKAGE %d APICID %d\n", core_id, smt_index, smt_count, core_index, core_count, package, apic_id);
-   #endif
+#if VERBOSE
+   printf("CORE %d: SMT %d/%d CORE %d/%d PACKAGE %d APICID %d\n", core_id, smt_index, smt_count, core_index, core_count,
+          package, apic_id);
+#endif
 }

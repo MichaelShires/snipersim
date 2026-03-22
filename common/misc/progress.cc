@@ -1,21 +1,16 @@
 #include "progress.h"
-#include "simulator.h"
 #include "config.hpp"
 #include "core_manager.h"
 #include "hooks_manager.h"
-#include "trace_manager.h"
 #include "magic_server.h"
+#include "simulator.h"
+#include "trace_manager.h"
 
-Progress::Progress()
-   : m_enabled(false)
-   , m_t_last(0)
-   , m_manual(false)
-   , m_manual_value(0.f)
+Progress::Progress() : m_enabled(false), m_t_last(0), m_manual(false), m_manual_value(0.f)
 {
    String filename = Sim()->getCfg()->getString("progress_trace/filename");
 
-   if (!filename.empty())
-   {
+   if (!filename.empty()) {
       m_fp = fopen(filename.c_str(), "w");
       m_enabled = true;
 
@@ -25,8 +20,7 @@ Progress::Progress()
 
 Progress::~Progress(void)
 {
-   if (m_enabled)
-   {
+   if (m_enabled) {
       fclose(m_fp);
    }
 }
@@ -39,8 +33,7 @@ void Progress::setProgress(float progress)
 
 void Progress::record(UInt64 simtime)
 {
-   if (m_t_last + m_interval < time(NULL))
-   {
+   if (m_t_last + m_interval < time(NULL)) {
       m_t_last = time(NULL);
 
       UInt64 expect = 0;
@@ -48,13 +41,11 @@ void Progress::record(UInt64 simtime)
       // Always return global instruction count, so MIPS number as reported by job infrastructure is correct
       UInt64 progress = MagicServer::getGlobalInstructionCount();
 
-      if (m_manual && m_manual_value > 0)
-      {
+      if (m_manual && m_manual_value > 0) {
          // Re-compute expected completion based on current progress
          expect = progress / m_manual_value;
       }
-      else if (Sim()->getTraceManager())
-      {
+      else if (Sim()->getTraceManager()) {
          UInt64 _expect = Sim()->getTraceManager()->getProgressExpect();
          UInt64 _progress = Sim()->getTraceManager()->getProgressValue();
 

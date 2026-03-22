@@ -3,14 +3,14 @@
 
 #include "fixed_types.h"
 
-#include <ostream>
-#include <ios>
 #include <boost/io/ios_state.hpp>
+#include <ios>
+#include <ostream>
 
-class BranchPredictorReturnValue {
+class BranchPredictorReturnValue
+{
 
-public:
-
+ public:
    enum BranchType
    {
       InvalidBranch = 0,
@@ -20,27 +20,23 @@ public:
       ConditionalBranch
    };
 
-   static const char* BranchTypeNames[];
+   static const char *BranchTypeNames[];
 
    bool prediction;
    bool hit;
    IntPtr target;
    BranchType type;
 
-   friend std::ostream& operator <<(std::ostream& stream, const BranchPredictorReturnValue& value);
-
+   friend std::ostream &operator<<(std::ostream &stream, const BranchPredictorReturnValue &value);
 };
 
-inline std::ostream& operator <<(std::ostream& stream, const BranchPredictorReturnValue& value)
+inline std::ostream &operator<<(std::ostream &stream, const BranchPredictorReturnValue &value)
 {
 
    boost::io::ios_flags_saver ifs(stream);
 
-   stream
-      << "Pred = " << value.prediction
-      << " Hit = " << value.hit
-      << " Tgt = " << std::hex << value.target << std::dec
-      << " Type = " << BranchPredictorReturnValue::BranchTypeNames[value.type];
+   stream << "Pred = " << value.prediction << " Hit = " << value.hit << " Tgt = " << std::hex << value.target
+          << std::dec << " Type = " << BranchPredictorReturnValue::BranchTypeNames[value.type];
 
    return stream;
 }

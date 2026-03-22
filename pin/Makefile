@@ -50,7 +50,7 @@ endif
 
 # Sources must come before the Makefile.common include to allow for
 #  the dependency file generation
-SOURCES = $(wildcard $(SIM_ROOT)/pin/*.cc $(SIM_ROOT)/pin/lite/*.cc)
+SOURCES = $(filter-out $(SIM_ROOT)/pin/codecache_trace.cc, $(wildcard $(SIM_ROOT)/pin/*.cc $(SIM_ROOT)/pin/lite/*.cc))
 
 OBJECTS = $(patsubst %.c,%.o,$(patsubst %.cc,%.o,$(SOURCES)))
 

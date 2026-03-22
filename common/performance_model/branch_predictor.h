@@ -4,10 +4,11 @@
 #include <iostream>
 
 #include "fixed_types.h"
+#include "component_registry.h"
 
 class BranchPredictor
 {
-public:
+ public:
    BranchPredictor();
    BranchPredictor(String name, core_id_t core_id);
    virtual ~BranchPredictor();
@@ -16,17 +17,23 @@ public:
    virtual void update(bool predicted, bool actual, bool indirect, IntPtr ip, IntPtr target) = 0;
 
    UInt64 getMispredictPenalty();
-   static BranchPredictor* create(core_id_t core_id);
+   static BranchPredictor *create(core_id_t core_id);
 
-   UInt64 getNumCorrectPredictions() { return m_correct_predictions; }
-   UInt64 getNumIncorrectPredictions() { return m_incorrect_predictions; }
+   UInt64 getNumCorrectPredictions()
+   {
+      return m_correct_predictions;
+   }
+   UInt64 getNumIncorrectPredictions()
+   {
+      return m_incorrect_predictions;
+   }
 
    void resetCounters();
 
-protected:
+ protected:
    void updateCounters(bool predicted, bool actual);
 
-private:
+ private:
    UInt64 m_correct_predictions;
    UInt64 m_incorrect_predictions;
 

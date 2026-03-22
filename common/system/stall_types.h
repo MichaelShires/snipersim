@@ -1,0 +1,19 @@
+#ifndef __STALL_TYPES_H
+#define __STALL_TYPES_H
+
+enum stall_type_t
+{
+   STALL_UNSCHEDULED,
+   STALL_BROKEN,
+   STALL_JOIN,
+   STALL_MUTEX,
+   STALL_COND,
+   STALL_BARRIER,
+   STALL_FUTEX,
+   STALL_PAUSE,
+   STALL_SLEEP,
+   STALL_SYSCALL,
+   STALL_TYPES_MAX
+};
+
+#endif

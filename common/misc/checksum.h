@@ -3,6 +3,6 @@
 
 #include "fixed_types.h"
 
-UInt64 computeCheckSum(const Byte* buffer, UInt32 length);
+UInt64 computeCheckSum(const Byte *buffer, UInt32 length);
 
 #endif // __CHECKSUM_H__

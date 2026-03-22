@@ -8,9 +8,9 @@ DIRECTORIES := ${shell find $(SIM_ROOT)/common -type d -print} \
 LIBCARBON_SOURCES = $(foreach dir,$(DIRECTORIES),$(wildcard $(dir)/*.cc)) \
 	$(wildcard $(SIM_ROOT)/common/config/*.cpp)
 
-LIBCARBON_OBJECTS = $(patsubst %.cpp,%.o,$(patsubst %.c,%.o,$(patsubst %.cc,%.o,$(LIBCARBON_SOURCES) ) ) )
+LIBCARBON_OBJECTS = $(patsubst %.cpp,%.cpp.o,$(patsubst %.c,%.c.o,$(patsubst %.cc,%.cc.o,$(LIBCARBON_SOURCES) ) ) )
 
-INCLUDE_DIRECTORIES = $(DIRECTORIES) $(XED_HOME)/include/xed $(SIM_ROOT)/linux $(SIM_ROOT)/sift $(SIM_ROOT)/decoder_lib
+INCLUDE_DIRECTORIES = $(SIM_ROOT) $(DIRECTORIES) $(XED_HOME)/include/xed $(SIM_ROOT)/linux $(SIM_ROOT)/sift $(SIM_ROOT)/decoder_lib
 
 CLEAN=$(findstring clean,$(MAKECMDGOALS))
 
@@ -44,6 +44,8 @@ ifneq ($(BOOST_INCLUDE),)
 	CPPFLAGS += -I$(BOOST_INCLUDE)
 endif
 
+CPPFLAGS += -DXED_ENCODER
+
 # Assuming python3 include dir is within the gcc search path
 PYTHON_LD_LIBS := $(shell python3-config --libs --embed)
 LD_LIBS += -ldecoder -lsift -lxed -lrt -lz -lsqlite3 -ltorch -ltorch_cpu -lc10 $(PYTHON_LD_LIBS)
@@ -76,27 +78,27 @@ CXXFLAGS+=-c \
 	@false
 
 # Build rules for dependency generation
-%.d: %.cpp
+%.cpp.d: %.cpp
 	$(_MSG) '[DEP   ]' $(subst $(shell readlink -f $(SIM_ROOT))/,,$(shell readlink -f $@))
-	$(_CMD) $(CXX) -MM -MG $(CPPFLAGS) $(CXXFLAGS) $< | sed -n "H;$$ {g;s@.*:\(.*\)@$*.o $@: \$$\(wildcard\1\)@;p}" >$@
+	$(_CMD) $(CXX) -MM -MG $(CPPFLAGS) $(CXXFLAGS) $< | sed -n "H;$$ {g;s@.*:\(.*\)@$*.cpp.o $@: \$$\(wildcard\1\)@;p}" >$@
 
-%.d: %.cc
+%.cc.d: %.cc
 	$(_MSG) '[DEP   ]' $(subst $(shell readlink -f $(SIM_ROOT))/,,$(shell readlink -f $@))
-	$(_CMD) $(CXX) -MM -MG $(CPPFLAGS) $(CXXFLAGS) $< | sed -n "H;$$ {g;s@.*:\(.*\)@$*.o $@: \$$\(wildcard\1\)@;p}" >$@
+	$(_CMD) $(CXX) -MM -MG $(CPPFLAGS) $(CXXFLAGS) $< | sed -n "H;$$ {g;s@.*:\(.*\)@$*.cc.o $@: \$$\(wildcard\1\)@;p}" >$@
 
-%.d: %.c
+%.c.d: %.c
 	$(_MSG) '[DEP   ]' $(subst $(shell readlink -f $(SIM_ROOT))/,,$(shell readlink -f $@))
-	$(_CMD) $(CC) -MM -MG $(CPPFLAGS) $(CFLAGS) $< | sed -n "H;$$ {g;s@.*:\(.*\)@$*.o $@: \$$\(wildcard\1\)@;p}" >$@
+	$(_CMD) $(CC) -MM -MG $(CPPFLAGS) $(CFLAGS) $< | sed -n "H;$$ {g;s@.*:\(.*\)@$*.c.o $@: \$$\(wildcard\1\)@;p}" >$@
 
 # Build rules for object generation
-%.o: %.cpp
+%.cpp.o: %.cpp
 	$(_MSG) '[CXX   ]' $(subst $(shell readlink -f $(SIM_ROOT))/,,$(shell readlink -f $@))
 	$(_CMD) $(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
-%.o : %.cc
+%.cc.o : %.cc
 	$(_MSG) '[CXX   ]' $(subst $(shell readlink -f $(SIM_ROOT))/,,$(shell readlink -f $@))
 	$(_CMD) $(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
-%.o : %.c
-	$(_MSG) '[CC    ]' $(subst $(shell readlink -f $(SIM_ROOT))/,,$(shell readlink -f $@))
+%.c.o : %.c
+	$(_MSG) '[CXX   ]' $(subst $(shell readlink -f $(SIM_ROOT))/,,$(shell readlink -f $@))
 	$(_CMD) $(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@

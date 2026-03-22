@@ -1,7 +1,7 @@
 SOURCES=$(filter-out siftdump.cc,$(wildcard *.cc))
 OBJECTS=$(patsubst %.cc,%.o,$(SOURCES))
 
-ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+ROOT_DIR:=$(shell dirname "$(realpath $(lastword $(MAKEFILE_LIST)))")
 
 ifneq ($(DEBUG_SHOW_COMPILE),)
   SHOW_COMPILE=1
@@ -19,7 +19,7 @@ all: libsift.a
 
 %.o: %.cc $(wildcard *.h)
 	$(_MSG) '[CXX   ]' $(subst $(shell readlink -f $(ROOT_DIR)/../../..)/,,$(shell readlink -f $@))
-	$(_CMD) $(CXX) -g -std=c++0x $(COMPILE_PIN_FLAGS) -c -o $@ $<
+	$(_CMD) $(CXX) -I. -I$(ROOT_DIR)/../../.. -g -std=c++0x $(COMPILE_PIN_FLAGS) -c -o $@ $<
 
 libsift.a: $(OBJECTS)
 	$(_MSG) '[LD    ]' $(subst $(shell readlink -f $(ROOT_DIR)/../../..)/,,$(shell readlink -f $@))

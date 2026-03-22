@@ -1,16 +1,16 @@
 #include "memory_manager.h"
-#include "stats.h"
-#include "log.h"
-#include "utils.h"
 #include "fast_cache.h"
+#include "log.h"
+#include "stats.h"
+#include "utils.h"
 
 namespace FastNehalem
 {
 
 CacheBase *MemoryManager::l3cache = NULL, *MemoryManager::dram = NULL;
 
-MemoryManager::MemoryManager(Core* core, Network* network, ShmemPerfModel* shmem_perf_model)
-   : MemoryManagerFast(core, network, shmem_perf_model)
+MemoryManager::MemoryManager(Core *core, Network *network, ShmemPerfModel *shmem_perf_model, SimulationContext *context)
+    : MemoryManagerFast(core, network, shmem_perf_model, context)
 {
    if (!dram)
       dram = new Dram(core, "dram", 150);
@@ -28,4 +28,4 @@ MemoryManager::~MemoryManager()
    delete l2cache;
 }
 
-}
+} // namespace FastNehalem

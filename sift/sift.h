@@ -5,34 +5,34 @@
 //
 // x86-64 only, little-endian
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 
 namespace Sift
 {
-   const uint32_t MAX_DYNAMIC_ADDRESSES = 2;
+const uint32_t MAX_DYNAMIC_ADDRESSES = 2;
 
-   typedef enum
-   {
-      MemInvalidLock = 0,
-      MemNoLock,
-      MemLock,
-      MemUnlock,
-   } MemoryLockType;
+typedef enum
+{
+   MemInvalidLock = 0,
+   MemNoLock,
+   MemLock,
+   MemUnlock,
+} MemoryLockType;
 
-   typedef enum
-   {
-      MemInvalidOp = 0,
-      MemRead,
-      MemWrite,
-   } MemoryOpType;
+typedef enum
+{
+   MemInvalidOp = 0,
+   MemRead,
+   MemWrite,
+} MemoryOpType;
 
-   typedef enum
-   {
-      RoutineEnter = 0,
-      RoutineExit,
-      RoutineAssert,
-   } RoutineOpType;
-};
+typedef enum
+{
+   RoutineEnter = 0,
+   RoutineExit,
+   RoutineAssert,
+} RoutineOpType;
+}; // namespace Sift
 
 #endif // __SIFT_H

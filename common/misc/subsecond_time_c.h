@@ -4,8 +4,8 @@
 // POD and c-linkage subsecond-time header
 
 #ifdef __cplusplus
-#include <iostream>
 #include <cstdint>
+#include <iostream>
 #else
 #include <stdint.h>
 #endif
@@ -14,12 +14,13 @@
 extern "C" {
 #endif
 // This subsecond_time_t struct is used for c-linkage cases
-struct subsecond_time_s {
+struct subsecond_time_s
+{
 #ifdef __cplusplus
    // Remove all constructors to make this data structure POD
    // Conversion to/from SubsecondTime is defined by the SubsecondTime class
    // From http://www.stackoverflow.com/questions/4421706
-   subsecond_time_s& operator+=(const subsecond_time_s &rhs)
+   subsecond_time_s &operator+=(const subsecond_time_s &rhs)
    {
       m_time += rhs.m_time;
       return *this;
@@ -37,4 +38,3 @@ std::ostream &operator<<(std::ostream &os, const subsecond_time_t &time);
 #endif
 
 #endif /* __SUBSECOND_TIME_C_H */
-

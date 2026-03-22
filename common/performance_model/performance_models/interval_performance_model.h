@@ -5,15 +5,15 @@
 
 class IntervalPerformanceModel : public MicroOpPerformanceModel
 {
-public:
+ public:
    IntervalPerformanceModel(Core *core, int misprediction_penalty);
    ~IntervalPerformanceModel();
 
-protected:
-   virtual boost::tuple<uint64_t,uint64_t> simulate(const std::vector<DynamicMicroOp*>& insts);
+ protected:
+   virtual boost::tuple<uint64_t, uint64_t> simulate(const std::vector<DynamicMicroOp *> &insts);
    virtual void notifyElapsedTimeUpdate();
 
-private:
+ private:
    IntervalTimer interval_timer;
 };
 

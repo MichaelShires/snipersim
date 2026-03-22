@@ -1,16 +1,15 @@
 #include "core_thread.h"
-#include "core_manager.h"
-#include "performance_model.h"
-#include "log.h"
-#include "simulator.h"
 #include "core.h"
-#include "sim_thread_manager.h"
+#include "core_manager.h"
+#include "log.h"
+#include "performance_model.h"
 #include "sim_api.h"
+#include "sim_thread_manager.h"
+#include "simulator.h"
 
 #include <unistd.h>
 
-CoreThread::CoreThread()
-   : m_thread(NULL)
+CoreThread::CoreThread() : m_thread(NULL)
 {
 }
 
@@ -35,9 +34,7 @@ void CoreThread::run()
    Sim()->getSimThreadManager()->simThreadStartCallback();
 
    // Turn off cont when we receive a quit message
-   net->registerCallback(CORE_THREAD_TERMINATE_THREADS,
-                         terminateFunc,
-                         (void *)&cont);
+   net->registerCallback(CORE_THREAD_TERMINATE_THREADS, terminateFunc, (void *)&cont);
 
    PerformanceModel *prfmdl = Sim()->getCoreManager()->getCurrentCore()->getPerformanceModel();
    while (cont) {
@@ -58,6 +55,6 @@ void CoreThread::spawn()
 
 void CoreThread::terminateFunc(void *vp, NetPacket pkt)
 {
-   bool *pcont = (bool*) vp;
+   bool *pcont = (bool *)vp;
    *pcont = false;
 }

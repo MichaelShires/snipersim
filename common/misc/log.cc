@@ -1,33 +1,31 @@
-#include <unistd.h>
-#include <sys/time.h>
-#include <sys/syscall.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <string.h>
-#include <signal.h>
+#include <sys/syscall.h>
+#include <sys/time.h>
+#include <unistd.h>
 
-#include "log.h"
-#include "config.h"
-#include "simulator.h"
-#include "core_manager.h"
-#include "config.hpp"
 #include "circular_log.h"
+#include "config.h"
+#include "config.hpp"
+#include "core_manager.h"
+#include "log.h"
+#include "simulator.h"
 
 // When debugging, it helps to be able to attach to the thread you would like to investigate directly,
 // instead of running the program from the beginning in GDB.
-//#define LOG_SIGSTOP_ON_ERROR
+// #define LOG_SIGSTOP_ON_ERROR
 
 Log *Log::_singleton;
 
 const size_t Log::MODULE_LENGTH;
 
-static String formatFileName(const char* s)
+static String formatFileName(const char *s)
 {
    return Sim()->getConfig()->formatOutputFileName(s);
 }
 
-Log::Log(Config &config)
-   : _coreCount(config.getTotalCores())
-   , _startTime(0)
+Log::Log(Config &config) : _coreCount(config.getTotalCores()), _startTime(0)
 {
    initFileDescriptors();
    getEnabledModules();
@@ -47,18 +45,17 @@ Log::~Log()
 {
    _singleton = NULL;
 
-   for (core_id_t i = 0; i < _coreCount; i++)
-   {
+   for (core_id_t i = 0; i < _coreCount; i++) {
       if (_coreFiles[i])
          fclose(_coreFiles[i]);
       if (_simFiles[i])
          fclose(_simFiles[i]);
    }
 
-   delete [] _coreLocks;
-   delete [] _simLocks;
-   delete [] _coreFiles;
-   delete [] _simFiles;
+   delete[] _coreLocks;
+   delete[] _simLocks;
+   delete[] _coreFiles;
+   delete[] _simFiles;
 
    if (_systemFile)
       fclose(_systemFile);
@@ -66,35 +63,32 @@ Log::~Log()
    CircularLog::fini();
 }
 
-Log* Log::getSingleton()
+Log *Log::getSingleton()
 {
    assert(_singleton);
    return _singleton;
 }
 
-bool Log::isEnabled(const char* module)
+bool Log::isEnabled(const char *module)
 {
    // either the module is specifically enabled, or all logging is
    // enabled and this one isn't disabled
-   return _anyLoggingEnabled &&
-      (_enabledModules.find(module) != _enabledModules.end()
-       || (_loggingEnabled && _disabledModules.find(module) == _disabledModules.end())
-      );
+   return _anyLoggingEnabled && (_enabledModules.find(module) != _enabledModules.end() ||
+                                 (_loggingEnabled && _disabledModules.find(module) == _disabledModules.end()));
 }
 
 void Log::initFileDescriptors()
 {
-   _coreFiles = new FILE* [_coreCount];
-   _simFiles = new FILE* [_coreCount];
+   _coreFiles = new FILE *[_coreCount];
+   _simFiles = new FILE *[_coreCount];
 
-   for (core_id_t i = 0; i < _coreCount; i++)
-   {
+   for (core_id_t i = 0; i < _coreCount; i++) {
       _coreFiles[i] = NULL;
       _simFiles[i] = NULL;
    }
 
-   _coreLocks = new Lock [_coreCount];
-   _simLocks = new Lock [_coreCount];
+   _coreLocks = new Lock[_coreCount];
+   _simLocks = new Lock[_coreCount];
 
    _systemFile = NULL;
 }
@@ -104,30 +98,24 @@ void Log::parseModules(std::set<String> &mods, String list)
    String delimiters = " ";
 
    String::size_type lastPos = list.find_first_not_of(delimiters, 0);
-   String::size_type pos     = list.find_first_of(delimiters, lastPos);
+   String::size_type pos = list.find_first_of(delimiters, lastPos);
 
    std::set<String> unformatted;
 
-   while (String::npos != pos || String::npos != lastPos)
-   {
+   while (String::npos != pos || String::npos != lastPos) {
       unformatted.insert(list.substr(lastPos, pos - lastPos));
       lastPos = list.find_first_not_of(delimiters, pos);
       pos = list.find_first_of(delimiters, lastPos);
    }
 
-   for (std::set<String>::iterator it = unformatted.begin();
-        it != unformatted.end();
-        it++)
-   {
+   for (std::set<String>::iterator it = unformatted.begin(); it != unformatted.end(); it++) {
       String formatted;
 
-      for (unsigned int i = 0; i < std::min(MODULE_LENGTH, it->length()); i++)
-      {
+      for (unsigned int i = 0; i < std::min(MODULE_LENGTH, it->length()); i++) {
          formatted.push_back((*it)[i]);
       }
 
-      for (unsigned int i = formatted.length(); i < MODULE_LENGTH; i++)
-      {
+      for (unsigned int i = formatted.length(); i < MODULE_LENGTH; i++) {
          formatted.push_back(' ');
       }
 
@@ -138,13 +126,10 @@ void Log::parseModules(std::set<String> &mods, String list)
 
 void Log::getDisabledModules()
 {
-   try
-   {
+   try {
       String disabledModules = Sim()->getCfg()->getString("log/disabled_modules");
       parseModules(_disabledModules, disabledModules);
-   }
-   catch (...)
-   {
+   } catch (...) {
       // FIXME: is log initialized at this point?
       LOG_PRINT_ERROR("Exception while reading disabled modules.");
    }
@@ -152,13 +137,10 @@ void Log::getDisabledModules()
 
 void Log::getEnabledModules()
 {
-   try
-   {
+   try {
       String enabledModules = Sim()->getCfg()->getString("log/enabled_modules");
       parseModules(_enabledModules, enabledModules);
-   }
-   catch (...)
-   {
+   } catch (...) {
       // FIXME: is log initialized at this point?
       LOG_PRINT_ERROR("Exception while reading enabled modules.");
    }
@@ -166,12 +148,9 @@ void Log::getEnabledModules()
 
 bool Log::initIsLoggingEnabled()
 {
-   try
-   {
+   try {
       return Sim()->getCfg()->getBool("log/enabled");
-   }
-   catch (...)
-   {
+   } catch (...) {
       assert(false);
       return false;
    }
@@ -182,7 +161,8 @@ UInt64 Log::getTimestamp()
    timeval t;
    gettimeofday(&t, NULL);
    UInt64 time = (((UInt64)t.tv_sec) * 1000000 + t.tv_usec);
-   if (_startTime == 0) _startTime = time;
+   if (_startTime == 0)
+      _startTime = time;
    return time - _startTime;
 }
 
@@ -190,15 +170,13 @@ void Log::discoverCore(core_id_t *core_id, bool *sim_thread)
 {
    CoreManager *core_manager;
 
-   if (!Sim() || !(core_manager = Sim()->getCoreManager()))
-   {
+   if (!Sim() || !(core_manager = Sim()->getCoreManager())) {
 
       *core_id = INVALID_CORE_ID;
       *sim_thread = false;
       return;
    }
-   else
-   {
+   else {
       *core_id = core_manager->getCurrentCoreID();
       *sim_thread = core_manager->amiSimThread();
    }
@@ -212,10 +190,8 @@ void Log::getFile(core_id_t core_id, bool sim_thread, FILE **file, Lock **lock)
    *file = NULL;
    *lock = NULL;
 
-   if (core_id == INVALID_CORE_ID)
-   {
-      if (_systemFile == NULL)
-      {
+   if (core_id == INVALID_CORE_ID) {
+      if (_systemFile == NULL) {
          char filename[256];
          sprintf(filename, "system.log");
          _systemFile = fopen(formatFileName(filename).c_str(), "w");
@@ -225,11 +201,9 @@ void Log::getFile(core_id_t core_id, bool sim_thread, FILE **file, Lock **lock)
       *file = _systemFile;
       *lock = &_systemLock;
    }
-   else if (sim_thread)
-   {
+   else if (sim_thread) {
       // sim thread file
-      if (_simFiles[core_id] == NULL)
-      {
+      if (_simFiles[core_id] == NULL) {
          assert(core_id < _coreCount);
          char filename[256];
          sprintf(filename, "sim_%u.log", core_id);
@@ -240,11 +214,9 @@ void Log::getFile(core_id_t core_id, bool sim_thread, FILE **file, Lock **lock)
       *file = _simFiles[core_id];
       *lock = &_simLocks[core_id];
    }
-   else
-   {
+   else {
       // core file
-      if (_coreFiles[core_id] == NULL)
-      {
+      if (_coreFiles[core_id] == NULL) {
          assert(core_id < _coreCount);
          char filename[256];
          sprintf(filename, "app_%u.log", core_id);
@@ -271,28 +243,28 @@ String Log::getModule(const char *filename)
    // }
    // else
    // {
-      // build module string
-      String mod;
+   // build module string
+   String mod;
 
-      // find actual file name ...
-      const char *ptr = strrchr(filename, '/');
-      if (ptr != NULL)
-         filename = ptr + 1;
+   // find actual file name ...
+   const char *ptr = strrchr(filename, '/');
+   if (ptr != NULL)
+      filename = ptr + 1;
 
-      for (UInt32 i = 0; i < MODULE_LENGTH && filename[i] != '\0'; i++)
-         mod.push_back(filename[i]);
+   for (UInt32 i = 0; i < MODULE_LENGTH && filename[i] != '\0'; i++)
+      mod.push_back(filename[i]);
 
-      while (mod.length() < MODULE_LENGTH)
-         mod.push_back(' ');
+   while (mod.length() < MODULE_LENGTH)
+      mod.push_back(' ');
 
    //   pair<const char*, String> p(filename, mod);
    //   _modules.insert(p);
 
-      return mod;
+   return mod;
    // }
 }
 
-void Log::log(ErrorState err, const char* source_file, SInt32 source_line, const char *format, ...)
+void Log::log(ErrorState err, const char *source_file, SInt32 source_line, const char *format, ...)
 {
    core_id_t core_id;
    bool sim_thread;
@@ -304,18 +276,18 @@ void Log::log(ErrorState err, const char* source_file, SInt32 source_line, const
    getFile(core_id, sim_thread, &file, &lock);
    int tid = syscall(__NR_gettid);
 
-
    char message[512];
    char *p = message;
 
    // This is ugly, but it just prints the time stamp, core number, source file/line
    if (core_id != INVALID_CORE_ID) // valid core id
-      p += sprintf(p, "%-10llu [%5d]  [%2i]%s[%s:%4d]  ", (long long unsigned int) getTimestamp(), tid, core_id, (sim_thread ? "* " : "  "), source_file, source_line);
+      p += sprintf(p, "%-10llu [%5d]  [%2i]%s[%s:%4d]  ", (long long unsigned int)getTimestamp(), tid, core_id,
+                   (sim_thread ? "* " : "  "), source_file, source_line);
    else // who knows
-      p += sprintf(p, "%-10llu [%5d]  [  ]  [%s:%4d]  ", (long long unsigned int) getTimestamp(), tid, source_file, source_line);
+      p += sprintf(p, "%-10llu [%5d]  [  ]  [%s:%4d]  ", (long long unsigned int)getTimestamp(), tid, source_file,
+                   source_line);
 
-   switch (err)
-   {
+   switch (err) {
    case None:
    default:
       break;
@@ -343,8 +315,7 @@ void Log::log(ErrorState err, const char* source_file, SInt32 source_line, const
 
    lock->release();
 
-   switch (err)
-   {
+   switch (err) {
    case Error:
       CircularLog::fini();
       fflush(NULL);
@@ -352,8 +323,7 @@ void Log::log(ErrorState err, const char* source_file, SInt32 source_line, const
 #ifndef LOG_SIGSTOP_ON_ERROR
       abort();
 #else
-      while (1)
-      {
+      while (1) {
          raise(SIGSTOP);
       }
 #endif

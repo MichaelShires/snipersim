@@ -7,14 +7,27 @@
 
 class PthreadLock : public LockImplementation
 {
-public:
+ public:
    PthreadLock();
    ~PthreadLock();
 
    void acquire();
    void release();
 
-private:
+ private:
+   pthread_mutex_t _mutx;
+};
+
+class PthreadRecursiveLock : public LockImplementation
+{
+ public:
+   PthreadRecursiveLock();
+   ~PthreadRecursiveLock();
+
+   void acquire();
+   void release();
+
+ private:
    pthread_mutex_t _mutx;
 };
 

@@ -3,24 +3,25 @@
 
 #include <list>
 
-#include "queue_model.h"
 #include "fixed_types.h"
 #include "moving_average.h"
+#include "queue_model.h"
 
 class QueueModelHistoryList : public QueueModel
 {
-public:
-   typedef std::list<std::pair<SubsecondTime,SubsecondTime> > FreeIntervalList;
+ public:
+   typedef std::list<std::pair<SubsecondTime, SubsecondTime>> FreeIntervalList;
 
    QueueModelHistoryList(String name, UInt32 id, SubsecondTime min_processing_time);
    ~QueueModelHistoryList();
 
-   SubsecondTime computeQueueDelay(SubsecondTime pkt_time, SubsecondTime processing_time, core_id_t requester = INVALID_CORE_ID);
+   SubsecondTime computeQueueDelay(SubsecondTime pkt_time, SubsecondTime processing_time,
+                                   core_id_t requester = INVALID_CORE_ID);
 
    float getQueueUtilization();
    float getFracRequestsUsingAnalyticalModel();
 
-private:
+ private:
    SubsecondTime m_min_processing_time;
    UInt32 m_max_free_interval_list_size;
 
@@ -29,7 +30,7 @@ private:
    // Tracks queue utilization
    SubsecondTime m_utilized_time;
    SubsecondTime m_total_queue_delay;
-   MovingAverage<SubsecondTime>* m_average_delay;
+   MovingAverage<SubsecondTime> *m_average_delay;
 
    // Is analytical model used ?
    bool m_analytical_model_enabled;

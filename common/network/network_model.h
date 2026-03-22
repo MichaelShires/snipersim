@@ -1,8 +1,8 @@
 #ifndef NETWORK_MODEL_H
 #define NETWORK_MODEL_H
 
-#include "packet_type.h"
 #include "fixed_types.h"
+#include "packet_type.h"
 #include "subsecond_time.h"
 
 #include <vector>
@@ -24,41 +24,46 @@ class Network;
 // vector.
 class NetworkModel
 {
-   public:
-      NetworkModel(Network *network, EStaticNetwork net_type);
-      virtual ~NetworkModel() { }
+ public:
+   NetworkModel(Network *network, EStaticNetwork net_type);
+   virtual ~NetworkModel()
+   {
+   }
 
-      void countPacket(const NetPacket &packet);
+   void countPacket(const NetPacket &packet);
 
-      struct Hop
-      {
-         SInt32 final_dest;
-         SInt32 next_dest;
-         subsecond_time_t time;
-      };
+   struct Hop
+   {
+      SInt32 final_dest;
+      SInt32 next_dest;
+      subsecond_time_t time;
+   };
 
-      virtual void routePacket(const NetPacket &pkt,
-                               std::vector<Hop> &nextHops) = 0;
-      virtual void processReceivedPacket(NetPacket &pkt) = 0;
+   virtual void routePacket(const NetPacket &pkt, std::vector<Hop> &nextHops) = 0;
+   virtual void processReceivedPacket(NetPacket &pkt) = 0;
 
-      virtual void enable() = 0;
-      virtual void disable() = 0;
+   virtual void enable() = 0;
+   virtual void disable() = 0;
 
-      static NetworkModel *createModel(Network *network, UInt32 model_type, EStaticNetwork net_type);
-      static UInt32 parseNetworkType(String str);
+   static NetworkModel *createModel(Network *network, UInt32 model_type, EStaticNetwork net_type);
+   static UInt32 parseNetworkType(String str);
 
-      static std::pair<bool,SInt32> computeCoreCountConstraints(UInt32 network_type, SInt32 core_count);
-      static std::pair<bool, std::vector<core_id_t> > computeMemoryControllerPositions(UInt32 network_type, SInt32 num_memory_controllers, SInt32 total_cores);
+   static std::pair<bool, SInt32> computeCoreCountConstraints(UInt32 network_type, SInt32 core_count);
+   static std::pair<bool, std::vector<core_id_t>>
+   computeMemoryControllerPositions(UInt32 network_type, SInt32 num_memory_controllers, SInt32 total_cores);
 
-   protected:
-      Network *getNetwork() { return _network; }
+ protected:
+   Network *getNetwork()
+   {
+      return _network;
+   }
 
-   private:
-      Network *_network;
+ private:
+   Network *_network;
 
-      const bool m_collect_traffic_matrix;
-      std::vector<uint64_t> m_matrix_packets;
-      std::vector<uint64_t> m_matrix_bytes;
+   const bool m_collect_traffic_matrix;
+   std::vector<uint64_t> m_matrix_packets;
+   std::vector<uint64_t> m_matrix_bytes;
 };
 
 #endif // NETWORK_MODEL_H

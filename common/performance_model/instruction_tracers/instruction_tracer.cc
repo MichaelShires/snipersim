@@ -1,13 +1,14 @@
 #include "instruction_tracer.h"
-#include "simulator.h"
 #include "config.hpp"
 #include "instruction_tracer_fpstats.h"
 #include "instruction_tracer_print.h"
-#include "loop_tracer.h"
 #include "loop_profiler.h"
+#include "loop_tracer.h"
+#include "simulator.h"
 
-void
-InstructionTracer::init()
+#include "instruction_tracer_llc.h"
+
+void InstructionTracer::init()
 {
    String type = Sim()->getCfg()->getString("instruction_tracer/type");
 
@@ -15,8 +16,7 @@ InstructionTracer::init()
       InstructionTracerFPStats::init();
 }
 
-InstructionTracer*
-InstructionTracer::create(const Core *core)
+InstructionTracer *InstructionTracer::create(const Core *core)
 {
    String type = Sim()->getCfg()->getString("instruction_tracer/type");
 
@@ -30,6 +30,8 @@ InstructionTracer::create(const Core *core)
       return new LoopTracer(core);
    else if (type == "loop_profiler")
       return new LoopProfiler(core);
+   else if (type == "llc")
+      return new InstructionTracerLLC(core);
    else
       LOG_PRINT_ERROR("Unknown instruction tracer type %s", type.c_str());
 }

@@ -1,13 +1,12 @@
 #include "sim_thread.h"
+#include "core.h"
 #include "core_manager.h"
 #include "log.h"
-#include "simulator.h"
-#include "core.h"
-#include "sim_thread_manager.h"
 #include "sim_api.h"
+#include "sim_thread_manager.h"
+#include "simulator.h"
 
-SimThread::SimThread()
-   : m_thread(NULL)
+SimThread::SimThread() : m_thread(NULL)
 {
 }
 
@@ -32,9 +31,7 @@ void SimThread::run()
    Sim()->getSimThreadManager()->simThreadStartCallback();
 
    // Turn off cont when we receive a quit message
-   net->registerCallback(SIM_THREAD_TERMINATE_THREADS,
-                         terminateFunc,
-                         (void *)&cont);
+   net->registerCallback(SIM_THREAD_TERMINATE_THREADS, terminateFunc, (void *)&cont);
 
    // Actual work gets done here
    while (cont)
@@ -53,6 +50,6 @@ void SimThread::spawn()
 
 void SimThread::terminateFunc(void *vp, NetPacket pkt)
 {
-   bool *pcont = (bool*) vp;
+   bool *pcont = (bool *)vp;
    *pcont = false;
 }

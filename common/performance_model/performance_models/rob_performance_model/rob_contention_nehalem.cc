@@ -3,18 +3,16 @@
  */
 
 #include "rob_contention_nehalem.h"
+#include "config.hpp"
+#include "core.h"
 #include "core_model.h"
 #include "dynamic_micro_op.h"
-#include "core.h"
-#include "config.hpp"
-#include "simulator.h"
 #include "memory_manager_base.h"
+#include "simulator.h"
 
 RobContentionNehalem::RobContentionNehalem(const Core *core, const CoreModel *core_model)
-   : m_core_model(core_model)
-   , m_cache_block_mask(~(core->getMemoryManager()->getCacheBlockSize() - 1))
-   , m_now(core->getDvfsDomain())
-   , alu_used_until(DynamicMicroOpNehalem::UOP_ALU_SIZE, SubsecondTime::Zero())
+    : m_core_model(core_model), m_cache_block_mask(~(core->getMemoryManager()->getCacheBlockSize() - 1)),
+      m_now(core->getDvfsDomain()), alu_used_until(DynamicMicroOpNehalem::UOP_ALU_SIZE, SubsecondTime::Zero())
 {
 }
 
@@ -36,37 +34,32 @@ bool RobContentionNehalem::tryIssue(const DynamicMicroOp &uop)
 
    const DynamicMicroOpNehalem *core_uop_info = uop.getCoreSpecificInfo<DynamicMicroOpNehalem>();
    DynamicMicroOpNehalem::uop_port_t uop_port = core_uop_info->getPort();
-   if (uop_port == DynamicMicroOpNehalem::UOP_PORT015)
-   {
+   if (uop_port == DynamicMicroOpNehalem::UOP_PORT015) {
       if (ports_generic >= 3)
          return false;
       else
          ports_generic++;
    }
-   else if (uop_port == DynamicMicroOpNehalem::UOP_PORT05)
-   {
+   else if (uop_port == DynamicMicroOpNehalem::UOP_PORT05) {
       if (ports_generic05 >= 2)
          return false;
       else
          ports_generic05++;
    }
-   else if (uop_port == DynamicMicroOpNehalem::UOP_PORT2 || uop_port == DynamicMicroOpNehalem::UOP_PORT34)
-   {
+   else if (uop_port == DynamicMicroOpNehalem::UOP_PORT2 || uop_port == DynamicMicroOpNehalem::UOP_PORT34) {
       if (ports[uop_port])
          return false;
       else
          ports[uop_port] = true;
    }
-   else
-   { // PORT0, PORT1 or PORT5
+   else { // PORT0, PORT1 or PORT5
       if (ports[uop_port])
          return false;
       else if (ports_generic >= 3)
          return false;
       else if (uop_port != DynamicMicroOpNehalem::UOP_PORT1 && ports_generic05 >= 2)
          return false;
-      else
-      {
+      else {
          ports[uop_port] = true;
          ports_generic++;
          if (uop_port != DynamicMicroOpNehalem::UOP_PORT1)
@@ -75,8 +68,7 @@ bool RobContentionNehalem::tryIssue(const DynamicMicroOp &uop)
    }
 
    // ALU contention
-   if (DynamicMicroOpNehalem::uop_alu_t alu = core_uop_info->getAlu())
-   {
+   if (DynamicMicroOpNehalem::uop_alu_t alu = core_uop_info->getAlu()) {
       if (alu_used_until[alu] > m_now)
          return false;
    }

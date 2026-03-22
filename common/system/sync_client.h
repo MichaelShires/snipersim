@@ -10,28 +10,29 @@ class SyncServer;
 
 class SyncClient
 {
-   public:
-      SyncClient(Thread*);
-      ~SyncClient();
+ public:
+   SyncClient(Thread *);
+   ~SyncClient();
 
-      void mutexInit(carbon_mutex_t *mux);
-      SubsecondTime mutexLock(carbon_mutex_t *mux, SubsecondTime delay = SubsecondTime::Zero());
-      std::pair<SubsecondTime, bool> mutexTrylock(carbon_mutex_t *mux);
-      SubsecondTime mutexUnlock(carbon_mutex_t *mux, SubsecondTime delay = SubsecondTime::Zero());
+   void mutexInit(carbon_mutex_t *mux);
+   SubsecondTime mutexLock(carbon_mutex_t *mux, SubsecondTime delay = SubsecondTime::Zero());
+   std::pair<SubsecondTime, bool> mutexTrylock(carbon_mutex_t *mux);
+   SubsecondTime mutexUnlock(carbon_mutex_t *mux, SubsecondTime delay = SubsecondTime::Zero());
 
-      void condInit(carbon_cond_t *cond);
-      SubsecondTime condWait(carbon_cond_t *cond, carbon_mutex_t *mux);
-      SubsecondTime condSignal(carbon_cond_t *cond);
-      SubsecondTime condBroadcast(carbon_cond_t *cond);
+   void condInit(carbon_cond_t *cond);
+   SubsecondTime condWait(carbon_cond_t *cond, carbon_mutex_t *mux);
+   SubsecondTime condSignal(carbon_cond_t *cond);
+   SubsecondTime condBroadcast(carbon_cond_t *cond);
 
-      void barrierInit(carbon_barrier_t *barrier, UInt32 count);
-      SubsecondTime barrierWait(carbon_barrier_t *barrier);
+   void barrierInit(carbon_barrier_t *barrier, UInt32 count);
+   SubsecondTime barrierWait(carbon_barrier_t *barrier);
 
-   private:
-      Thread *m_thread;
-      SyncServer *m_server;
+ private:
+   Thread *m_thread;
+   SyncServer *m_server;
 
-      std::pair<SubsecondTime, bool> __mutexLock(carbon_mutex_t *mux, bool tryLock, SubsecondTime delay = SubsecondTime::Zero());
+   std::pair<SubsecondTime, bool> __mutexLock(carbon_mutex_t *mux, bool tryLock,
+                                              SubsecondTime delay = SubsecondTime::Zero());
 };
 
 #endif

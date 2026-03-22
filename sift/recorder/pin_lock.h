@@ -5,13 +5,13 @@
 
 class PinLock : public LockImplementation
 {
-public:
+ public:
    PinLock();
    ~PinLock();
 
    void acquire();
    void release();
 
-private:
+ private:
    PIN_LOCK _lock;
 };

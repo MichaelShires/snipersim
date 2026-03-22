@@ -1,15 +1,15 @@
 #ifndef __RECORDER_CONTROL_H
 #define __RECORDER_CONTROL_H
 
-#include "sift_format.h"
 #include "pin.H"
+#include "sift_format.h"
 
 void setInstrumentationMode(Sift::Mode mode);
 
-void beginROI(THREADID threadid, const CONTEXT * ctxt);
-void endROI(THREADID threadid, const CONTEXT * ctxt);
+void beginROI(THREADID threadid, const CONTEXT *ctxt);
+void endROI(THREADID threadid, const CONTEXT *ctxt);
 
-ADDRINT handleMagic(THREADID threadid, const CONTEXT * ctxt, ADDRINT gax, ADDRINT gbx, ADDRINT gcx);
+ADDRINT handleMagic(THREADID threadid, const CONTEXT *ctxt, ADDRINT gax, ADDRINT gbx, ADDRINT gcx);
 
 ADDRINT translateAddress(ADDRINT addr, ADDRINT size);
 

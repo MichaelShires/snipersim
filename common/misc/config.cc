@@ -1,22 +1,27 @@
 #include "config.h"
-
-#include "network_model.h"
-#include "packet_type.h"
+#include "config.hpp"
+#include "log.h"
 #include "simulator.h"
 #include "utils.h"
-#include "config.hpp"
+#include "subsecond_time.h"
 
-#include <unistd.h>
+#include <iostream>
 #include <sstream>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sched.h>
 
-#define DEBUG
+#undef LOG_ASSERT_ERROR
+#define LOG_ASSERT_ERROR(cond, ...) if (!(cond)) { fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); exit(1); }
+
+Config *Config::m_singleton = NULL;
 
 String Config::m_knob_output_directory;
 UInt32 Config::m_knob_total_cores;
 UInt32 Config::m_knob_num_host_cores;
 bool Config::m_knob_enable_smc_support;
-bool Config::m_knob_issue_memops_at_functional;
 bool Config::m_knob_enable_icache_modeling;
+bool Config::m_knob_issue_memops_at_functional;
 Config::SimulationROI Config::m_knob_roi;
 bool Config::m_knob_enable_progress_trace;
 bool Config::m_knob_enable_sync;
@@ -26,46 +31,29 @@ UInt32 Config::m_knob_osemu_nprocs;
 bool Config::m_knob_osemu_clock_replace;
 time_t Config::m_knob_osemu_time_start;
 bool Config::m_knob_bbvs;
+ComponentPeriod Config::m_knob_core_frequency;
 ClockSkewMinimizationObject::Scheme Config::m_knob_clock_skew_minimization_scheme;
 UInt64 Config::m_knob_hpi_percore;
 UInt64 Config::m_knob_hpi_global;
 bool Config::m_knob_enable_spinloopdetection;
-CacheEfficiencyTracker::Callbacks Config::m_cache_efficiency_callbacks;
 bool Config::m_suppress_stdout;
 bool Config::m_suppress_stderr;
 bool Config::m_circular_log_enabled;
 bool Config::m_knob_enable_pinplay;
 bool Config::m_knob_enable_syscall_emulation;
-
-Config *Config::m_singleton;
-
-Config *Config::getSingleton()
-{
-   assert(m_singleton != NULL);
-   return m_singleton;
-}
-
-// Don't call LOG_* inside Config::Config, as the logging infrastructure isn't set up yet at this point
-#undef LOG_PRINT_ERROR
-#undef LOG_ASSERT_ERROR
+CacheEfficiencyTracker::Callbacks Config::m_cache_efficiency_callbacks;
 
 Config::Config(SimulationMode mode)
 {
-   // NOTE: We can NOT use logging in the config constructor! The log
-   // has not been instantiated at this point!
-
    m_knob_output_directory = Sim()->getCfg()->getString("general/output_dir");
    m_knob_total_cores = Sim()->getCfg()->getInt("general/total_cores");
 
    m_knob_num_host_cores = Sim()->getCfg()->getInt("general/num_host_cores");
-   if (m_knob_num_host_cores == 0)
-   {
-      // Count how many cores we are allowed to run on
+   if (m_knob_num_host_cores == 0) {
       cpu_set_t mask;
       int res = sched_getaffinity(0, sizeof(mask), &mask);
-      if (res == 0)
-      {
-         for(UInt32 cpu = 0; cpu < _SC_NPROCESSORS_ONLN; ++cpu)
+      if (res == 0) {
+         for (UInt32 cpu = 0; cpu < (UInt32)sysconf(_SC_NPROCESSORS_ONLN); ++cpu)
             if (CPU_ISSET(cpu, &mask))
                ++m_knob_num_host_cores;
       }
@@ -89,80 +77,72 @@ Config::Config(SimulationMode mode)
    m_knob_enable_sync_report = Sim()->getCfg()->getBool("clock_skew_minimization/report");
 
    m_simulation_mode = mode;
-   m_knob_bbvs = false; // No config setting here, but enabled by code (BBVSamplingProvider, [py|lua]_bbv) that needs it
+   m_knob_bbvs = false;
 
-   // OS Emulation flags
    m_knob_osemu_pthread_replace = Sim()->getCfg()->getBool("osemu/pthread_replace");
    m_knob_osemu_nprocs = Sim()->getCfg()->getInt("osemu/nprocs");
    m_knob_osemu_clock_replace = Sim()->getCfg()->getBool("osemu/clock_replace");
    m_knob_osemu_time_start = Sim()->getCfg()->getInt("osemu/time_start");
 
-   // HOOK_PERIODIC_INS
    m_knob_hpi_percore = Sim()->getCfg()->getInt("core/hook_periodic_ins/ins_per_core");
    m_knob_hpi_global = Sim()->getCfg()->getInt("core/hook_periodic_ins/ins_global");
 
-   m_knob_enable_spinloopdetection = Sim()->getCfg()->getBool("core/spin_loop_detection");
-
-   m_suppress_stdout = Sim()->getCfg()->getBool("general/suppress_stdout");
-   m_suppress_stderr = Sim()->getCfg()->getBool("general/suppress_stderr");
-
-   m_circular_log_enabled = Sim()->getCfg()->getBool("log/circular_log");
-
-   m_knob_enable_pinplay = Sim()->getCfg()->getBool("general/enable_pinplay");
-   m_knob_enable_syscall_emulation = !m_knob_enable_pinplay && Sim()->getCfg()->getBool("general/enable_syscall_emulation");
+   UInt64 freq_hz = (UInt64(Sim()->getCfg()->getFloat("perf_model/core/frequency") * 1000) * 1000000);
+   m_knob_core_frequency = ComponentPeriod(SubsecondTime::SEC() / freq_hz);
 
    m_knob_clock_skew_minimization_scheme = ClockSkewMinimizationObject::parseScheme(Sim()->getCfg()->getString("clock_skew_minimization/scheme"));
+   m_knob_enable_spinloopdetection = Sim()->getCfg()->getBool("core/spin_loop_detection/enabled");
+   m_suppress_stdout = Sim()->getCfg()->getBool("general/suppress_stdout");
+   m_suppress_stderr = Sim()->getCfg()->getBool("general/suppress_stderr");
+   m_circular_log_enabled = Sim()->getCfg()->getBool("general/circular_log");
+   m_knob_enable_pinplay = Sim()->getCfg()->getBool("general/enable_pinplay");
+   m_knob_enable_syscall_emulation = Sim()->getCfg()->getBool("general/enable_syscall_emulation");
 
-   m_total_cores = m_knob_total_cores;
-
-   m_singleton = this;
-
-   assert(m_total_cores > 0);
-
-   //No, be sure to configure a valid NumApplicationCores count
-   //// Adjust the number of cores corresponding to the network model we use
-   //m_total_cores = getNearestAcceptableCoreCount(m_total_cores);
-
-   m_core_id_length = computeCoreIDLength(m_total_cores);
+   m_core_id_length = computeCoreIDLength(m_knob_total_cores);
 }
 
 Config::~Config()
 {
 }
 
+Config *Config::getSingleton()
+{
+   return Sim()->getConfig();
+}
+
 UInt32 Config::getTotalCores()
 {
-   return m_total_cores;
+   return m_knob_total_cores;
 }
 
 UInt32 Config::getApplicationCores()
 {
-   return getTotalCores();
+   return m_knob_total_cores;
+}
+
+void Config::updateCommToCoreMap(UInt32 comm_id, core_id_t core_id)
+{
+   m_comm_to_core_map[comm_id] = core_id;
+}
+
+UInt32 Config::getCoreFromCommId(UInt32 comm_id)
+{
+   return m_comm_to_core_map[comm_id];
+}
+
+void Config::getNetworkModels(UInt32 *models) const
+{
+   // Stub
 }
 
 UInt32 Config::computeCoreIDLength(UInt32 core_count)
 {
-   UInt32 num_bits = ceilLog2(core_count);
-   if ((num_bits % 8) == 0)
-      return (num_bits / 8);
+   if (core_count <= 256)
+      return 1;
+   else if (core_count <= 65536)
+      return 2;
    else
-      return (num_bits / 8) + 1;
-}
-
-// Parse XML config file and use it to fill in config state.  Only modifies
-// fields specified in the config file.  Therefore, this method can be used
-// to override only the specific options given in the file.
-void Config::loadFromFile(char* filename)
-{
-   return;
-}
-
-// Fill in config state from command-line arguments.  Only modifies fields
-// specified on the command line.  Therefore, this method can be used to
-// override only the specific options given.
-void Config::loadFromCmdLine()
-{
-   return;
+      return 4;
 }
 
 String Config::getOutputDirectory() const
@@ -175,76 +155,14 @@ String Config::formatOutputFileName(String filename) const
    return m_knob_output_directory + "/" + filename;
 }
 
-void Config::updateCommToCoreMap(UInt32 comm_id, core_id_t core_id)
+void Config::logCoreMap()
 {
-   m_comm_to_core_map[comm_id] = core_id;
 }
 
-UInt32 Config::getCoreFromCommId(UInt32 comm_id)
+void Config::setCacheEfficiencyCallbacks(CacheEfficiencyTracker::CallbackGetOwner get_owner_func,
+                                         CacheEfficiencyTracker::CallbackNotifyAccess notify_access_func,
+                                         CacheEfficiencyTracker::CallbackNotifyEvict notify_evict_func, UInt64 user_arg)
 {
-   CommToCoreMap::iterator it = m_comm_to_core_map.find(comm_id);
-   return it == m_comm_to_core_map.end() ? INVALID_CORE_ID : it->second;
-}
-
-void Config::getNetworkModels(UInt32 *models) const
-{
-   try
-   {
-      config::Config *cfg = Sim()->getCfg();
-      models[STATIC_NETWORK_MEMORY_1] = NetworkModel::parseNetworkType(cfg->getString("network/memory_model_1"));
-      models[STATIC_NETWORK_SYSTEM] = NetworkModel::parseNetworkType(cfg->getString("network/system_model"));
-   }
-   catch (...)
-   {
-      config::Error("Exception while reading network model types.");
-   }
-}
-
-UInt32 Config::getNearestAcceptableCoreCount(UInt32 core_count)
-{
-   UInt32 nearest_acceptable_core_count = 0;
-
-   UInt32 l_models[NUM_STATIC_NETWORKS];
-   try
-   {
-      config::Config *cfg = Sim()->getCfg();
-      l_models[STATIC_NETWORK_MEMORY_1] = NetworkModel::parseNetworkType(cfg->getString("network/memory_model_1"));
-      l_models[STATIC_NETWORK_SYSTEM] = NetworkModel::parseNetworkType(cfg->getString("network/system_model"));
-   }
-   catch (...)
-   {
-      config::Error("Exception while reading network model types.");
-   }
-
-   for (UInt32 i = 0; i < NUM_STATIC_NETWORKS; i++)
-   {
-      std::pair<bool,SInt32> core_count_constraints = NetworkModel::computeCoreCountConstraints(l_models[i], (SInt32) core_count);
-      if (core_count_constraints.first)
-      {
-         // Network Model has core count constraints
-         if ((nearest_acceptable_core_count != 0) &&
-             (core_count_constraints.second != (SInt32) nearest_acceptable_core_count))
-         {
-            config::Error("Problem using the network models specified in the configuration file.");
-         }
-         else
-         {
-            nearest_acceptable_core_count = core_count_constraints.second;
-         }
-      }
-   }
-
-   if (nearest_acceptable_core_count == 0)
-      nearest_acceptable_core_count = core_count;
-
-   return nearest_acceptable_core_count;
-}
-
-void Config::setCacheEfficiencyCallbacks(CacheEfficiencyTracker::CallbackGetOwner get_owner_func, CacheEfficiencyTracker::CallbackNotifyAccess notify_access_func, CacheEfficiencyTracker::CallbackNotifyEvict notify_evict_func, UInt64 user_arg)
-{
-   if (m_cache_efficiency_callbacks.notify_evict_func != NULL)
-      config::Error("Cannot register more than one CacheEfficiencyTracker user");
-
    m_cache_efficiency_callbacks.get_owner_func = get_owner_func;
    m_cache_efficiency_callbacks.notify_access_func = notify_access_func;
    m_cache_efficiency_callbacks.notify_evict_func = notify_evict_func;

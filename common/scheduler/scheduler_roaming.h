@@ -5,13 +5,13 @@
 
 class SchedulerRoaming : public SchedulerPinnedBase
 {
-   public:
-      SchedulerRoaming(ThreadManager *thread_manager);
+ public:
+   SchedulerRoaming(ThreadManager *thread_manager);
 
-      virtual void threadSetInitialAffinity(thread_id_t thread_id);
+   virtual void threadSetInitialAffinity(thread_id_t thread_id);
 
-   private:
-      std::vector<bool> m_core_mask;
+ private:
+   std::vector<bool> m_core_mask;
 };
 
 #endif // __SCHEDULER_ROAMING_H

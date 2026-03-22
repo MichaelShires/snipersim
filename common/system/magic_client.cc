@@ -1,9 +1,9 @@
 #include "magic_client.h"
+#include "core.h"
+#include "core_manager.h"
 #include "magic_server.h"
 #include "sim_api.h"
 #include "simulator.h"
-#include "core.h"
-#include "core_manager.h"
 #include "thread.h"
 #include "thread_manager.h"
 
@@ -21,8 +21,7 @@ void setInstrumentationMode(UInt64 opt)
 
 UInt64 handleMagicInstruction(thread_id_t thread_id, UInt64 cmd, UInt64 arg0, UInt64 arg1)
 {
-   switch(cmd)
-   {
+   switch (cmd) {
    case SIM_CMD_ROI_TOGGLE:
    case SIM_CMD_ROI_START:
    case SIM_CMD_ROI_END:
@@ -40,8 +39,7 @@ UInt64 handleMagicInstruction(thread_id_t thread_id, UInt64 cmd, UInt64 arg0, UI
 
    case SIM_CMD_SET_THREAD_NAME:
       return handleMagic(thread_id, cmd, arg0, arg1);
-   case SIM_CMD_PROC_ID:
-   {
+   case SIM_CMD_PROC_ID: {
       Core *core = Sim()->getCoreManager()->getCurrentCore();
       return core->getId();
    }

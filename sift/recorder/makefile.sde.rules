@@ -44,7 +44,7 @@ else
 	endif
 endif
 
-ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+ROOT_DIR:=$(shell dirname "$(realpath $(lastword $(MAKEFILE_LIST)))")
 
 TOOL_CXXFLAGS := -I$(SDE_ROOT)/include -I./sift $(TOOL_CXXFLAGS)
 TOOL_CXXFLAGS += -DSDE_INIT -DPINPLAY -I$(PINPLAY_ROOT)/include

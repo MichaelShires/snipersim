@@ -11,14 +11,14 @@ extern "C" {
 
 class InstructionTracerFPStats : public InstructionTracer
 {
-   public:
-      InstructionTracerFPStats(const Core *core);
-      static void init();
-      virtual void traceInstruction(const DynamicMicroOp *uop, uop_times_t *times);
+ public:
+   InstructionTracerFPStats(const Core *core);
+   static void init();
+   virtual void traceInstruction(const DynamicMicroOp *uop, uop_times_t *times);
 
-   private:
-      const Core *m_core;
-      std::unordered_map<int, uint64_t> m_iclasses;
+ private:
+   const Core *m_core;
+   std::unordered_map<int, uint64_t> m_iclasses;
 };
 
 #endif /* __INSTRUCTION_TRACER_FPSTATS_H */

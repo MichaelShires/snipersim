@@ -7,13 +7,13 @@
 
 class CoreThread : public Runnable
 {
-public:
+ public:
    CoreThread();
    ~CoreThread();
 
    void spawn();
 
-private:
+ private:
    void run();
 
    static void terminateFunc(void *vp, NetPacket pkt);

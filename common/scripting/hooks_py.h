@@ -11,23 +11,25 @@
 #error "Python version does not support some features used. Please upgrade to Pyhton 3.8 or higher."
 #endif
 
-class HooksPy {
-   public:
-      static void init(void);
-      static void set_env();
-      static void fini(void);
+class HooksPy
+{
+ public:
+   static void init(void);
+   static void set_env();
+   static void fini(void);
 
-      static PyObject * callPythonFunction(PyObject *pFunc, PyObject *pArgs);
+   static PyObject *callPythonFunction(PyObject *pFunc, PyObject *pArgs);
 
-      static void prepare_abort();
-      static bool need_to_abort();
-   private:
-      static std::string get_root();
-      static void run_python_file_with_argv(const std::string &filename, const std::string &argv_str);
-      static bool pyInit;
-      static bool abort;
+   static void prepare_abort();
+   static bool need_to_abort();
 
-      static PyThreadState *_save;
+ private:
+   static std::string get_root();
+   static void run_python_file_with_argv(const std::string &filename, const std::string &argv_str);
+   static bool pyInit;
+   static bool abort;
+
+   static PyThreadState *_save;
 };
 
 PyMODINIT_FUNC PyInit_sim_config(void);

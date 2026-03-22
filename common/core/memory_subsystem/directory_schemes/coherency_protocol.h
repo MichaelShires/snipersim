@@ -3,13 +3,13 @@
 
 class CoherencyProtocol
 {
-   public:
-      enum type_t
-      {
-         MSI,
-         MESI,
-         MESIF
-      };
+ public:
+   enum type_t
+   {
+      MSI,
+      MESI,
+      MESIF
+   };
 };
 
 #endif /* COHERENCYPROTOCOL_H_ */

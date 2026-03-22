@@ -3,13 +3,13 @@
 
 #include "fixed_types.h"
 
-#include <sstream>
 #include <iostream>
+#include <sstream>
 #include <vector>
 
 class Operand
 {
-public:
+ public:
    enum Type
    {
       REG,
@@ -26,12 +26,18 @@ public:
    typedef UInt64 Value;
 
    Operand(const Operand &src)
-      : m_type(src.m_type), m_value(src.m_value), m_direction(src.m_direction), m_value_name(src.m_value_name), m_mem_operand(src.m_mem_operand) {}
+       : m_type(src.m_type), m_value(src.m_value), m_direction(src.m_direction), m_value_name(src.m_value_name),
+         m_mem_operand(src.m_mem_operand)
+   {
+   }
 
-   Operand(Type type, Value value = 0, Direction direction = READ, const String& value_name = String(), bool mem_operand = false)
-      : m_type(type), m_value(value), m_direction(direction), m_value_name(value_name), m_mem_operand(mem_operand) {}
+   Operand(Type type, Value value = 0, Direction direction = READ, const String &value_name = String(),
+           bool mem_operand = false)
+       : m_type(type), m_value(value), m_direction(direction), m_value_name(value_name), m_mem_operand(mem_operand)
+   {
+   }
 
-   String toString (void) const
+   String toString(void) const
    {
       std::ostringstream o;
       o << "Operand: ";
@@ -63,7 +69,7 @@ public:
    Value m_value;
    Direction m_direction;
    String m_value_name; // for m_type == REG
-   bool m_mem_operand; // for m_type == REG
+   bool m_mem_operand;  // for m_type == REG
 };
 
 typedef std::vector<Operand> OperandList;

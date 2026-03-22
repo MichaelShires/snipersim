@@ -20,17 +20,17 @@ void PinLock::release()
 }
 
 #if 1
-LockImplementation* LockCreator_Default::create()
+LockImplementation *LockCreator_Default::create()
 {
    return new PinLock();
 }
-LockImplementation* LockCreator_RwLock::create()
+LockImplementation *LockCreator_RwLock::create()
 {
    return new PinLock();
 }
 #endif
 
-LockImplementation* LockCreator_Spinlock::create()
+LockImplementation *LockCreator_Spinlock::create()
 {
-    return new PinLock();
+   return new PinLock();
 }

@@ -84,7 +84,7 @@ else
 	endif
 endif
 
-ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+ROOT_DIR:=$(shell dirname "$(realpath $(lastword $(MAKEFILE_LIST)))")
 
 
 PINPLAY_HOME = $(PIN_ROOT)/extras/pinplay

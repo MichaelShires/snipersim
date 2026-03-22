@@ -5,14 +5,14 @@
 
 class OneIPCPerformanceModel : public PerformanceModel
 {
-public:
+ public:
    OneIPCPerformanceModel(Core *core);
    ~OneIPCPerformanceModel();
 
-private:
+ private:
    void handleInstruction(DynamicInstruction *instruction);
 
-   bool isModeled(Instruction const* instruction) const;
+   bool isModeled(Instruction const *instruction) const;
 
    UInt64 m_latency_cutoff;
 

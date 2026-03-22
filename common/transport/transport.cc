@@ -2,8 +2,8 @@
 
 #include <assert.h>
 
-#include "transport.h"
 #include "smtransport.h"
+#include "transport.h"
 
 #include "config.h"
 #include "log.h"
@@ -16,24 +16,23 @@ Transport::Transport()
 {
 }
 
-Transport* Transport::create()
+Transport *Transport::create(Config *config)
 {
    assert(m_singleton == NULL);
 
-   m_singleton = new SmTransport();
+   m_singleton = new SmTransport(config);
 
    return m_singleton;
 }
 
-Transport* Transport::getSingleton()
+Transport *Transport::getSingleton()
 {
    return m_singleton;
 }
 
 // -- Node -- //
 
-Transport::Node::Node(core_id_t core_id)
-   : m_core_id(core_id)
+Transport::Node::Node(core_id_t core_id) : m_core_id(core_id)
 {
 }
 

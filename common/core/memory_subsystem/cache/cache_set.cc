@@ -1,33 +1,23 @@
 #include "cache_set.h"
-#include "cache_set_lru.h"
-#include "cache_set_mru.h"
-#include "cache_set_nmru.h"
-#include "cache_set_nru.h"
-#include "cache_set_plru.h"
-#include "cache_set_random.h"
-#include "cache_set_round_robin.h"
-#include "cache_set_srrip.h"
 #include "cache_base.h"
-#include "log.h"
-#include "simulator.h"
 #include "config.h"
 #include "config.hpp"
+#include "log.h"
+#include "simulator.h"
 
-CacheSet::CacheSet(CacheBase::cache_t cache_type,
-      UInt32 associativity, UInt32 blocksize):
-      m_associativity(associativity), m_blocksize(blocksize)
+CacheSet::CacheSet(CacheBase::cache_t cache_type, UInt32 associativity, UInt32 blocksize)
+    : m_associativity(associativity), m_blocksize(blocksize)
 {
-   m_cache_block_info_array = new CacheBlockInfo*[m_associativity];
-   for (UInt32 i = 0; i < m_associativity; i++)
-   {
+   m_cache_block_info_array = new CacheBlockInfo *[m_associativity];
+   for (UInt32 i = 0; i < m_associativity; i++) {
       m_cache_block_info_array[i] = CacheBlockInfo::create(cache_type);
    }
 
-   if (Sim()->getFaultinjectionManager())
-   {
+   if (Simulator::getSingleton() && Sim()->getFaultinjectionManager()) {
       m_blocks = new char[m_associativity * m_blocksize];
       memset(m_blocks, 0x00, m_associativity * m_blocksize);
-   } else {
+   }
+   else {
       m_blocks = NULL;
    }
 }
@@ -36,43 +26,38 @@ CacheSet::~CacheSet()
 {
    for (UInt32 i = 0; i < m_associativity; i++)
       delete m_cache_block_info_array[i];
-   delete [] m_cache_block_info_array;
-   delete [] m_blocks;
+   delete[] m_cache_block_info_array;
+   delete[] m_blocks;
 }
 
-void
-CacheSet::read_line(UInt32 line_index, UInt32 offset, Byte *out_buff, UInt32 bytes, bool update_replacement)
+void CacheSet::read_line(UInt32 line_index, UInt32 offset, Byte *out_buff, UInt32 bytes, bool update_replacement)
 {
    assert(offset + bytes <= m_blocksize);
-   //assert((out_buff == NULL) == (bytes == 0));
+   // assert((out_buff == NULL) == (bytes == 0));
 
    if (out_buff != NULL && m_blocks != NULL)
-      memcpy((void*) out_buff, &m_blocks[line_index * m_blocksize + offset], bytes);
+      memcpy((void *)out_buff, &m_blocks[line_index * m_blocksize + offset], bytes);
 
    if (update_replacement)
       updateReplacementIndex(line_index);
 }
 
-void
-CacheSet::write_line(UInt32 line_index, UInt32 offset, Byte *in_buff, UInt32 bytes, bool update_replacement)
+void CacheSet::write_line(UInt32 line_index, UInt32 offset, Byte *in_buff, UInt32 bytes, bool update_replacement)
 {
    assert(offset + bytes <= m_blocksize);
-   //assert((in_buff == NULL) == (bytes == 0));
+   // assert((in_buff == NULL) == (bytes == 0));
 
    if (in_buff != NULL && m_blocks != NULL)
-      memcpy(&m_blocks[line_index * m_blocksize + offset], (void*) in_buff, bytes);
+      memcpy(&m_blocks[line_index * m_blocksize + offset], (void *)in_buff, bytes);
 
    if (update_replacement)
       updateReplacementIndex(line_index);
 }
 
-CacheBlockInfo*
-CacheSet::find(IntPtr tag, UInt32* line_index)
+CacheBlockInfo *CacheSet::find(IntPtr tag, UInt32 *line_index)
 {
-   for (SInt32 index = m_associativity-1; index >= 0; index--)
-   {
-      if (m_cache_block_info_array[index]->getTag() == tag)
-      {
+   for (SInt32 index = m_associativity - 1; index >= 0; index--) {
+      if (m_cache_block_info_array[index]->getTag() == tag) {
          if (line_index != NULL)
             *line_index = index;
          return (m_cache_block_info_array[index]);
@@ -81,13 +66,10 @@ CacheSet::find(IntPtr tag, UInt32* line_index)
    return NULL;
 }
 
-bool
-CacheSet::invalidate(IntPtr& tag)
+bool CacheSet::invalidate(IntPtr &tag)
 {
-   for (SInt32 index = m_associativity-1; index >= 0; index--)
-   {
-      if (m_cache_block_info_array[index]->getTag() == tag)
-      {
+   for (SInt32 index = m_associativity - 1; index >= 0; index--) {
+      if (m_cache_block_info_array[index]->getTag() == tag) {
          m_cache_block_info_array[index]->invalidate();
          return true;
       }
@@ -95,8 +77,8 @@ CacheSet::invalidate(IntPtr& tag)
    return false;
 }
 
-void
-CacheSet::insert(CacheBlockInfo* cache_block_info, Byte* fill_buff, bool* eviction, CacheBlockInfo* evict_block_info, Byte* evict_buff, CacheCntlr *cntlr)
+void CacheSet::insert(CacheBlockInfo *cache_block_info, Byte *fill_buff, bool *eviction,
+                      CacheBlockInfo *evict_block_info, Byte *evict_buff, CacheCntlr *cntlr)
 {
    // This replacement strategy does not take into account the fact that
    // cache blocks can be voluntarily flushed or invalidated due to another write request
@@ -105,16 +87,14 @@ CacheSet::insert(CacheBlockInfo* cache_block_info, Byte* fill_buff, bool* evicti
 
    assert(eviction != NULL);
 
-   if (m_cache_block_info_array[index]->isValid())
-   {
+   if (m_cache_block_info_array[index]->isValid()) {
       *eviction = true;
       // FIXME: This is a hack. I dont know if this is the best way to do
       evict_block_info->clone(m_cache_block_info_array[index]);
       if (evict_buff != NULL && m_blocks != NULL)
-         memcpy((void*) evict_buff, &m_blocks[index * m_blocksize], m_blocksize);
+         memcpy((void *)evict_buff, &m_blocks[index * m_blocksize], m_blocksize);
    }
-   else
-   {
+   else {
       *eviction = false;
    }
 
@@ -122,90 +102,49 @@ CacheSet::insert(CacheBlockInfo* cache_block_info, Byte* fill_buff, bool* evicti
    m_cache_block_info_array[index]->clone(cache_block_info);
 
    if (fill_buff != NULL && m_blocks != NULL)
-      memcpy(&m_blocks[index * m_blocksize], (void*) fill_buff, m_blocksize);
+      memcpy(&m_blocks[index * m_blocksize], (void *)fill_buff, m_blocksize);
 }
 
-char*
-CacheSet::getDataPtr(UInt32 line_index, UInt32 offset)
+char *CacheSet::getDataPtr(UInt32 line_index, UInt32 offset)
 {
    return &m_blocks[line_index * m_blocksize + offset];
 }
 
-CacheSet*
-CacheSet::createCacheSet(String cfgname, core_id_t core_id,
-      String replacement_policy,
-      CacheBase::cache_t cache_type,
-      UInt32 associativity, UInt32 blocksize, CacheSetInfo* set_info)
+CacheSet *CacheSet::createCacheSet(String cfgname, core_id_t core_id, String replacement_policy,
+                                   CacheBase::cache_t cache_type, UInt32 associativity, UInt32 blocksize,
+                                   CacheSetInfo *set_info)
 {
-   CacheBase::ReplacementPolicy policy = parsePolicyType(replacement_policy);
-   switch(policy)
-   {
-      case CacheBase::ROUND_ROBIN:
-         return new CacheSetRoundRobin(cache_type, associativity, blocksize);
+   CacheSet *set = ComponentRegistry<CacheSet, String, core_id_t, CacheBase::cache_t, UInt32, UInt32, CacheSetInfo*>::get().create(
+         replacement_policy, cfgname, core_id, cache_type, associativity, blocksize, set_info);
 
-      case CacheBase::LRU:
-      case CacheBase::LRU_QBS:
-         return new CacheSetLRU(cache_type, associativity, blocksize, dynamic_cast<CacheSetInfoLRU*>(set_info), getNumQBSAttempts(policy, cfgname, core_id));
-
-      case CacheBase::NRU:
-         return new CacheSetNRU(cache_type, associativity, blocksize);
-
-      case CacheBase::MRU:
-         return new CacheSetMRU(cache_type, associativity, blocksize);
-
-      case CacheBase::NMRU:
-         return new CacheSetNMRU(cache_type, associativity, blocksize);
-
-      case CacheBase::PLRU:
-         return new CacheSetPLRU(cache_type, associativity, blocksize);
-
-      case CacheBase::SRRIP:
-      case CacheBase::SRRIP_QBS:
-         return new CacheSetSRRIP(cfgname, core_id, cache_type, associativity, blocksize, dynamic_cast<CacheSetInfoLRU*>(set_info), getNumQBSAttempts(policy, cfgname, core_id));
-
-      case CacheBase::RANDOM:
-         return new CacheSetRandom(cache_type, associativity, blocksize);
-
-      default:
-         LOG_PRINT_ERROR("Unrecognized Cache Replacement Policy: %i",
-               policy);
-         break;
+   if (!set) {
+      LOG_PRINT_ERROR("Unrecognized Cache Replacement Policy: %s", replacement_policy.c_str());
    }
-
-   return (CacheSet*) NULL;
+   return set;
 }
 
-CacheSetInfo*
-CacheSet::createCacheSetInfo(String name, String cfgname, core_id_t core_id, String replacement_policy, UInt32 associativity)
+CacheSetInfo *CacheSet::createCacheSetInfo(String name, String cfgname, core_id_t core_id, String replacement_policy,
+                                           UInt32 associativity)
 {
-   CacheBase::ReplacementPolicy policy = parsePolicyType(replacement_policy);
-   switch(policy)
-   {
-      case CacheBase::LRU:
-      case CacheBase::LRU_QBS:
-      case CacheBase::SRRIP:
-      case CacheBase::SRRIP_QBS:
-         return new CacheSetInfoLRU(name, cfgname, core_id, associativity, getNumQBSAttempts(policy, cfgname, core_id));
-      default:
-         return NULL;
+   CacheSetInfo *info = ComponentRegistry<CacheSetInfo, String, String, core_id_t, UInt32>::get().create(
+         replacement_policy, name, cfgname, core_id, associativity);
+
+   // Return NULL if not found, since not all policies need CacheSetInfo
+   return info;
+}
+
+UInt8 CacheSet::getNumQBSAttempts(CacheBase::ReplacementPolicy policy, String cfgname, core_id_t core_id)
+{
+   switch (policy) {
+   case CacheBase::LRU_QBS:
+   case CacheBase::SRRIP_QBS:
+      return Sim()->getCfg()->getIntArray(cfgname + "/qbs/attempts", core_id);
+   default:
+      return 1;
    }
 }
 
-UInt8
-CacheSet::getNumQBSAttempts(CacheBase::ReplacementPolicy policy, String cfgname, core_id_t core_id)
-{
-   switch(policy)
-   {
-      case CacheBase::LRU_QBS:
-      case CacheBase::SRRIP_QBS:
-         return Sim()->getCfg()->getIntArray(cfgname + "/qbs/attempts", core_id);
-      default:
-         return 1;
-   }
-}
-
-CacheBase::ReplacementPolicy
-CacheSet::parsePolicyType(String policy)
+CacheBase::ReplacementPolicy CacheSet::parsePolicyType(String policy)
 {
    if (policy == "round_robin")
       return CacheBase::ROUND_ROBIN;
@@ -233,12 +172,10 @@ CacheSet::parsePolicyType(String policy)
 
 bool CacheSet::isValidReplacement(UInt32 index)
 {
-   if (m_cache_block_info_array[index]->getCState() == CacheState::SHARED_UPGRADING)
-   {
+   if (m_cache_block_info_array[index]->getCState() == CacheState::SHARED_UPGRADING) {
       return false;
    }
-   else
-   {
+   else {
       return true;
    }
 }

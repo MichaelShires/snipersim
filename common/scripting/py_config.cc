@@ -1,9 +1,8 @@
+#include "config.hpp"
 #include "hooks_py.h"
 #include "simulator.h"
-#include "config.hpp"
 
-static PyObject *
-getConfigString(PyObject *self, PyObject *args)
+static PyObject *getConfigString(PyObject *self, PyObject *args)
 {
    const char *key = NULL;
    SInt32 index = -1;
@@ -20,8 +19,7 @@ getConfigString(PyObject *self, PyObject *args)
    return PyUnicode_FromString(result.c_str());
 }
 
-static PyObject *
-getConfigInt(PyObject *self, PyObject *args)
+static PyObject *getConfigInt(PyObject *self, PyObject *args)
 {
    const char *key = NULL;
    SInt32 index = -1;
@@ -38,8 +36,7 @@ getConfigInt(PyObject *self, PyObject *args)
    return PyLong_FromLongLong(result);
 }
 
-static PyObject *
-getConfigFloat(PyObject *self, PyObject *args)
+static PyObject *getConfigFloat(PyObject *self, PyObject *args)
 {
    const char *key = NULL;
    SInt32 index = -1;
@@ -56,8 +53,7 @@ getConfigFloat(PyObject *self, PyObject *args)
    return PyFloat_FromDouble(result);
 }
 
-static PyObject *
-getConfigBool(PyObject *self, PyObject *args)
+static PyObject *getConfigBool(PyObject *self, PyObject *args)
 {
    const char *key = NULL;
    SInt32 index = -1;
@@ -74,23 +70,16 @@ getConfigBool(PyObject *self, PyObject *args)
    return PyBool_FromLong(result);
 }
 
-
 static PyMethodDef PySniperConfigMethods[] = {
-   {"get",  getConfigString, METH_VARARGS, "Get configuration variable."},
-   {"get_int",  getConfigInt, METH_VARARGS, "Get configuration variable."},
-   {"get_float",  getConfigFloat, METH_VARARGS, "Get configuration variable."},
-   {"get_bool",  getConfigBool, METH_VARARGS, "Get configuration variable."},
-   {NULL, NULL, 0, NULL} /* Sentinel */
+    {"get", getConfigString, METH_VARARGS, "Get configuration variable."},
+    {"get_int", getConfigInt, METH_VARARGS, "Get configuration variable."},
+    {"get_float", getConfigFloat, METH_VARARGS, "Get configuration variable."},
+    {"get_bool", getConfigBool, METH_VARARGS, "Get configuration variable."},
+    {NULL, NULL, 0, NULL} /* Sentinel */
 };
 
 static PyModuleDef PySniperConfigModule = {
-	PyModuleDef_HEAD_INIT,
-	"sim_config",
-	"",
-	-1,
-	PySniperConfigMethods,
-	NULL, NULL, NULL, NULL
-};
+    PyModuleDef_HEAD_INIT, "sim_config", "", -1, PySniperConfigMethods, NULL, NULL, NULL, NULL};
 
 PyMODINIT_FUNC PyInit_sim_config(void)
 {

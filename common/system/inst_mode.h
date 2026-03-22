@@ -5,21 +5,27 @@
 
 class InstMode
 {
-   public:
-      enum inst_mode_t {
-         INVALID = 0, DETAILED, CACHE_ONLY, FAST_FORWARD
-      };
-      static inst_mode_t inst_mode_init, inst_mode_roi, inst_mode_end;
-      static inst_mode_t fromString(const String str);
+ public:
+   enum inst_mode_t
+   {
+      INVALID = 0,
+      DETAILED,
+      CACHE_ONLY,
+      FAST_FORWARD
+   };
+   static inst_mode_t inst_mode_init, inst_mode_roi, inst_mode_end;
+   static inst_mode_t fromString(const String str);
+   static inst_mode_t getInstrumentationMode() { return inst_mode; }
+   static const char *inst_mode_names[];
 
-   private:
-      static inst_mode_t inst_mode;
-      static void updateInstrumentationMode();
+ private:
+   static inst_mode_t inst_mode;
+   static void updateInstrumentationMode();
 
-      // Access through Sim()
-      friend class Simulator;
+   // Access through Sim()
+   friend class Simulator;
 };
 
-extern const char * inst_mode_names[];
+extern const char *inst_mode_names[];
 
 #endif // INSTMODE_H

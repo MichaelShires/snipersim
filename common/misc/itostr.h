@@ -9,8 +9,7 @@
 // But the one internal to std::stringstream is never exposed to other threads,
 // so it should be fine to use it locally.
 
-template<typename T>
-String itostr(T val)
+template <typename T> String itostr(T val)
 {
    std::stringstream s;
    s << val;

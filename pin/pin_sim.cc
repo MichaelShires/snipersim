@@ -65,8 +65,11 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
+#include <map>
 
 #include <typeinfo>
+
+using namespace std;
 
 // ---------------------------------------------------------------
 // FIXME:
@@ -472,10 +475,12 @@ int main(int argc, char *argv[])
    TRACE_AddInstrumentFunction(traceCallback, 0);
 
    if (!Sim()->getConfig()->getEnableSMCSupport())
-      CODECACHE_AddTraceInvalidatedFunction(traceInvalidate, 0);
+   {
+      // CODECACHE_AddTraceInvalidatedFunction(traceInvalidate, 0);
+   }
 
    PIN_AddDetachFunction(ApplicationDetach, 0);
-   PIN_AddFiniUnlockedFunction(ApplicationExit, 0);
+   PIN_AddFiniFunction(ApplicationExit, 0);
 
    PIN_AddForkFunction(FPOINT_AFTER_IN_CHILD, forkAfterChild, 0);
 

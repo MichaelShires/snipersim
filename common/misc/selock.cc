@@ -1,36 +1,33 @@
 #include "selock.h"
 #include <assert.h>
 
-SELock::SELock(void)
-   : m_write(false)
-   , m_writers(0)
-   , m_readers(0)
+SELock::SELock(void) : m_write(false), m_writers(0), m_readers(0)
 {
-   #ifdef TIME_LOCKS
+#ifdef TIME_LOCKS
    _timer = TotalTimer::getTimerByStacktrace("selock@" + itostr(this));
-   #endif
+#endif
 }
 
-#define WAIT_WHILE(condition)                      \
-   /* First busy wait a little */                  \
-   for(int i = 0; i < 10000 && (condition); ++i) ; \
-   while(condition) {                              \
-      /* Then reschedule */                        \
-      sched_yield();                               \
+#define WAIT_WHILE(condition)                                                                                          \
+   /* First busy wait a little */                                                                                      \
+   for (int i = 0; i < 10000 && (condition); ++i)                                                                      \
+      ;                                                                                                                \
+   while (condition) {                                                                                                 \
+      /* Then reschedule */                                                                                            \
+      sched_yield();                                                                                                   \
    }
 
 // Acquire exclusive access
-void
-SELock::acquire_exclusive(void)
+void SELock::acquire_exclusive(void)
 {
-   #ifdef TIME_LOCKS
+#ifdef TIME_LOCKS
    ScopedTimer tt(*_timer);
-   #endif
+#endif
 
    // Tell everyone we want to write
    __sync_add_and_fetch(&m_writers, 1);
 
-   while(true) {
+   while (true) {
       // Wait until the current writer and all readers have left
       WAIT_WHILE(m_write || m_readers);
 
@@ -49,8 +46,7 @@ SELock::acquire_exclusive(void)
 }
 
 // Release exclusive access
-void
-SELock::release_exclusive(void)
+void SELock::release_exclusive(void)
 {
    assert(m_write == true);
 
@@ -58,14 +54,13 @@ SELock::release_exclusive(void)
 }
 
 // Acquire shared access
-void
-SELock::acquire_shared(void)
+void SELock::acquire_shared(void)
 {
-   #ifdef TIME_LOCKS
+#ifdef TIME_LOCKS
    ScopedTimer tt(*_timer);
-   #endif
+#endif
 
-   while(true) {
+   while (true) {
       // Wait until the current writer has left
       WAIT_WHILE(m_write);
 
@@ -87,16 +82,14 @@ SELock::acquire_shared(void)
 }
 
 // Release shared access
-void
-SELock::release_shared(void)
+void SELock::release_shared(void)
 {
    assert(m_readers > 0);
 
    __sync_sub_and_fetch(&m_readers, 1);
 }
 
-void
-SELock::upgrade(void)
+void SELock::upgrade(void)
 {
    assert(m_readers > 0);
 
@@ -107,7 +100,7 @@ SELock::upgrade(void)
       // Someone is waiting to write. Release our read lock, and go the long way (same as acquire_exclusive)
       __sync_sub_and_fetch(&m_readers, 1);
 
-      while(true) {
+      while (true) {
          // Wait until the current writer and all readers have left
          WAIT_WHILE(m_write || m_readers);
 
@@ -123,8 +116,8 @@ SELock::upgrade(void)
 
          break;
       }
-
-   } else {
+   }
+   else {
       // There were no previous waiting writers. We don't need to release the shared lock we already have
 
       // Wait until the current writer and all readers have left
@@ -142,8 +135,7 @@ SELock::upgrade(void)
    }
 }
 
-void
-SELock::downgrade(void)
+void SELock::downgrade(void)
 {
    assert(m_write == true);
 

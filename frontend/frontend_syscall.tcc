@@ -1,5 +1,14 @@
 #include <iostream>
 #include <unistd.h>
+#include <sys/syscall.h>
+
+#ifndef __NR_gettid
+# if defined(__x86_64__)
+#  define __NR_gettid 186
+# elif defined(__i386__)
+#  define __NR_gettid 224
+# endif
+#endif
 
 namespace frontend
 {
@@ -130,10 +139,11 @@ void FrontendSyscallModelBase <T>::doSyscall
             if (args[0] & CLONE_THREAD)
             {
                // Store the thread's tid ptr for later use  -- FIXME!!
+               addr_t tidptr = 0;
                #if defined(TARGET_IA32) || defined(ARM_32) || defined(ARM_64)  // from man clone
-                  addr_t tidptr = args[2];
+                  tidptr = args[2];
                #elif defined(TARGET_INTEL64) || defined(X86_64)
-                  addr_t tidptr = args[3];
+                  tidptr = args[3];
                #endif
                if (m_options->get_verbose())
                {

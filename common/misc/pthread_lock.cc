@@ -20,17 +20,46 @@ void PthreadLock::release()
    pthread_mutex_unlock(&_mutx);
 }
 
-__attribute__((weak)) LockImplementation* LockCreator_Default::create()
+PthreadRecursiveLock::PthreadRecursiveLock()
 {
-    return new PthreadLock();
+   pthread_mutexattr_t attr;
+   pthread_mutexattr_init(&attr);
+   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+   pthread_mutex_init(&_mutx, &attr);
+   pthread_mutexattr_destroy(&attr);
 }
 
-__attribute__((weak)) LockImplementation* LockCreator_RwLock::create()
+PthreadRecursiveLock::~PthreadRecursiveLock()
 {
-    return new PthreadLock();
+   pthread_mutex_destroy(&_mutx);
 }
 
-__attribute__((weak)) LockImplementation* LockCreator_Spinlock::create()
+void PthreadRecursiveLock::acquire()
 {
-    return new PthreadLock();
+   pthread_mutex_lock(&_mutx);
+}
+
+void PthreadRecursiveLock::release()
+{
+   pthread_mutex_unlock(&_mutx);
+}
+
+__attribute__((weak)) LockImplementation *LockCreator_Default::create()
+{
+   return new PthreadLock();
+}
+
+__attribute__((weak)) LockImplementation *LockCreator_RwLock::create()
+{
+   return new PthreadLock();
+}
+
+__attribute__((weak)) LockImplementation *LockCreator_Spinlock::create()
+{
+   return new PthreadLock();
+}
+
+__attribute__((weak)) LockImplementation *LockCreator_Recursive::create()
+{
+   return new PthreadRecursiveLock();
 }

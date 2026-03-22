@@ -3,18 +3,16 @@
  */
 
 #include "rob_contention_boom_v1.h"
+#include "config.hpp"
+#include "core.h"
 #include "core_model.h"
 #include "dynamic_micro_op.h"
-#include "core.h"
-#include "config.hpp"
-#include "simulator.h"
 #include "memory_manager_base.h"
+#include "simulator.h"
 
 RobContentionBoomV1::RobContentionBoomV1(const Core *core, const CoreModel *core_model)
-   : m_core_model(core_model)
-   , m_cache_block_mask(~(core->getMemoryManager()->getCacheBlockSize() - 1))
-   , m_now(core->getDvfsDomain())
-   , alu_used_until(DynamicMicroOpBoomV1::UOP_ALU_SIZE, SubsecondTime::Zero())
+    : m_core_model(core_model), m_cache_block_mask(~(core->getMemoryManager()->getCacheBlockSize() - 1)),
+      m_now(core->getDvfsDomain()), alu_used_until(DynamicMicroOpBoomV1::UOP_ALU_SIZE, SubsecondTime::Zero())
 {
 }
 
@@ -36,29 +34,25 @@ bool RobContentionBoomV1::tryIssue(const DynamicMicroOp &uop)
    const DynamicMicroOpBoomV1 *core_uop_info = uop.getCoreSpecificInfo<DynamicMicroOpBoomV1>();
    DynamicMicroOpBoomV1::uop_port_t uop_port = core_uop_info->getPort();
 
-   if (uop_port == DynamicMicroOpBoomV1::UOP_PORT012)
-   {
+   if (uop_port == DynamicMicroOpBoomV1::UOP_PORT012) {
       if (ports_generic012 >= 3)
          return false;
       else
          ports_generic012++;
    }
-   else
-   { // PORT0, PORT1 or PORT2
+   else { // PORT0, PORT1 or PORT2
       if (ports[uop_port])
          return false;
       else if (ports_generic012 >= 3)
          return false;
-      else
-      {
+      else {
          ports[uop_port] = true;
          ports_generic012++;
       }
    }
 
    // ALU contention
-   if (DynamicMicroOpBoomV1::uop_alu_t alu = core_uop_info->getAlu())
-   {
+   if (DynamicMicroOpBoomV1::uop_alu_t alu = core_uop_info->getAlu()) {
       if (alu_used_until[alu] > m_now)
          return false;
    }

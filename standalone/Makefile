@@ -1,7 +1,7 @@
 # this gives us default build rules and dependency handling
 SIM_ROOT ?= $(CURDIR)/..
 
-LD_LIBS += -lcarbon_sim -lpthread
+LD_LIBS += -lcarbon_sim -lpthread -lcurl
 
 CLEAN=$(findstring clean,$(MAKECMDGOALS))
 
@@ -10,7 +10,7 @@ CLEAN=$(findstring clean,$(MAKECMDGOALS))
 
 # Add other CXX Flags
 CXXFLAGS += -c \
-            -fPIC -Wall -Wno-unknown-pragmas $(OPT_CFLAGS) #-Werror
+            -fPIC -Wall -Wno-unknown-pragmas $(OPT_CFLAGS) -I$(SIM_ROOT)/build_asan/_deps/cli11-src/include -fsanitize=address #-Werror
 
 # Use the pin flags for building
 include $(SIM_ROOT)/Makefile.config
@@ -53,7 +53,7 @@ endif
 
 # These libraries are used by libcarbon, so add them to the end
 LD_LIBS += -lxed
-LD_FLAGS += -L$(XED_HOME)/lib -no-pie
+LD_FLAGS += -L$(XED_HOME)/lib -no-pie -fsanitize=address
 
 ifneq ($(CLEAN),clean)
 -include $(patsubst %.cpp,%.d,$(patsubst %.c,%.d,$(patsubst %.cc,%.d,$(SOURCES))))

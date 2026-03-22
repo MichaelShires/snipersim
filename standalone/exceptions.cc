@@ -1,12 +1,12 @@
 #include "exceptions.h"
+#include "config.hpp"
+#include "hooks_manager.h"
 #include "simulator.h"
 #include "trace_manager.h"
-#include "hooks_manager.h"
-#include "config.hpp"
 
+#include <execinfo.h>
 #include <signal.h>
 #include <stdio.h>
-#include <execinfo.h>
 #include <string.h>
 
 static void exceptionHandler(int sig, siginfo_t *scp, void *ctxt)
@@ -15,8 +15,7 @@ static void exceptionHandler(int sig, siginfo_t *scp, void *ctxt)
 
    fprintf(stderr, "\n[SNIPER] Internal exception: %s. Access Address = %p\n\n", strsignal(sig), scp->si_addr);
 
-   if (in_handler)
-   {
+   if (in_handler) {
       // Avoid recursion when the code below generates a new exception
       return;
    }
@@ -24,22 +23,20 @@ static void exceptionHandler(int sig, siginfo_t *scp, void *ctxt)
       in_handler = true;
 
    // Hide errors caused by failing SIFT writers, the root cause is the timing model failure
-   if (Sim()->getTraceManager())
-   {
+   if (Sim()->getTraceManager()) {
       Sim()->getTraceManager()->mark_done();
    }
 
    const int BACKTRACE_SIZE = 16;
-   void * backtrace_buffer[BACKTRACE_SIZE];
+   void *backtrace_buffer[BACKTRACE_SIZE];
    unsigned int backtrace_n = backtrace(backtrace_buffer, BACKTRACE_SIZE);
 
-   FILE* fp = fopen(Sim()->getConfig()->formatOutputFileName("debug_backtrace.out").c_str(), "w");
+   FILE *fp = fopen(Sim()->getConfig()->formatOutputFileName("debug_backtrace.out").c_str(), "w");
    // Usually rdtsc address, use 0 to tell addr2line we're in standalone mode
    fprintf(fp, "sniper\n");
    fprintf(fp, "%" PRIdPTR "\n", (intptr_t)0);
    // Skip functions 0 (this is us) and 1 (a libc internal function)
-   for(unsigned int i = 2; i < backtrace_n; ++i)
-   {
+   for (unsigned int i = 2; i < backtrace_n; ++i) {
       fprintf(fp, " %" PRIdPTR "", (intptr_t)backtrace_buffer[i]);
    }
    fprintf(fp, "\n");
@@ -72,8 +69,7 @@ void registerExceptionHandler()
    sigaction(SIGUSR1, &sa, NULL);
 
    auto signal_to_ignore = Sim()->getCfg()->getInt("general/signals_to_ignore");
-   if (signal_to_ignore)
-   {
+   if (signal_to_ignore) {
       signal(signal_to_ignore, SIG_IGN);
    }
 }

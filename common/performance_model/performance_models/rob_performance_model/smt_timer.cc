@@ -3,17 +3,12 @@
  */
 
 #include "smt_timer.h"
+#include "circular_log.h"
 #include "simulator.h"
 #include "thread.h"
-#include "circular_log.h"
 
 SmtTimer::SmtThread::SmtThread(Core *core, PerformanceModel *perf)
-      : core(core)
-      , perf(perf)
-      , thread(NULL)
-      , in_wakeup(false)
-      , running(false)
-      , in_barrier(false)
+    : core(core), perf(perf), thread(NULL), in_wakeup(false), running(false), in_barrier(false)
 {
 }
 
@@ -21,11 +16,7 @@ SmtTimer::SmtThread::~SmtThread()
 {
 }
 
-SmtTimer::SmtTimer(uint64_t num_threads)
-   : m_num_threads(num_threads)
-   , in_sync(false)
-   , enabled(true)
-   , execute_thread(0)
+SmtTimer::SmtTimer(uint64_t num_threads) : m_num_threads(num_threads), in_sync(false), enabled(true), execute_thread(0)
 {
    Sim()->getHooksManager()->registerHook(HookType::HOOK_ROI_BEGIN, SmtTimer::hookRoiBegin, (UInt64)this);
    Sim()->getHooksManager()->registerHook(HookType::HOOK_THREAD_START, SmtTimer::hookThreadStart, (UInt64)this);
@@ -37,7 +28,7 @@ SmtTimer::SmtTimer(uint64_t num_threads)
 
 SmtTimer::~SmtTimer()
 {
-   for(std::vector<SmtThread *>::iterator it = m_threads.begin(); it != m_threads.end(); ++it)
+   for (std::vector<SmtThread *>::iterator it = m_threads.begin(); it != m_threads.end(); ++it)
       delete *it;
 }
 
@@ -57,7 +48,7 @@ SmtTimer::smtthread_id_t SmtTimer::findSmtThreadFromThread(thread_id_t thread_id
 {
    if (thread_id == INVALID_THREAD_ID)
       return INVALID_SMTTHREAD_ID;
-   for(smtthread_id_t smtthread_id = 0; smtthread_id < m_threads.size(); ++smtthread_id)
+   for (smtthread_id_t smtthread_id = 0; smtthread_id < m_threads.size(); ++smtthread_id)
       if (m_threads[smtthread_id]->thread && (m_threads[smtthread_id]->thread->getId() == thread_id))
          return smtthread_id;
    return INVALID_SMTTHREAD_ID;
@@ -67,7 +58,7 @@ SmtTimer::smtthread_id_t SmtTimer::findSmtThreadFromCore(core_id_t core_id)
 {
    if (core_id == INVALID_CORE_ID)
       return INVALID_SMTTHREAD_ID;
-   for(smtthread_id_t smtthread_id = 0; smtthread_id < m_threads.size(); ++smtthread_id)
+   for (smtthread_id_t smtthread_id = 0; smtthread_id < m_threads.size(); ++smtthread_id)
       if (m_threads[smtthread_id]->core->getId() == core_id)
          return smtthread_id;
    return INVALID_SMTTHREAD_ID;
@@ -81,16 +72,13 @@ bool SmtTimer::isBarrierReached()
       return false;
 
    bool any_in_barrier = false;
-   for(smtthread_id_t thread_num = 0; thread_num < m_threads.size(); ++thread_num)
-   {
+   for (smtthread_id_t thread_num = 0; thread_num < m_threads.size(); ++thread_num) {
       SmtThread *thread = m_threads[thread_num];
 
-      if (thread->running && !thread->in_barrier)
-      {
+      if (thread->running && !thread->in_barrier) {
          return false;
       }
-      else if (thread->in_barrier)
-      {
+      else if (thread->in_barrier) {
          any_in_barrier = true;
       }
    }
@@ -106,12 +94,10 @@ bool SmtTimer::barrierRelease(bool release_all, smtthread_id_t thread_id)
    // Release those threads for which we want more instructions
 
    unsigned int num_running = 0;
-   for(smtthread_id_t thread_num = 0; thread_num < m_threads.size(); ++thread_num)
-   {
+   for (smtthread_id_t thread_num = 0; thread_num < m_threads.size(); ++thread_num) {
       SmtThread *thread = m_threads[thread_num];
 
-      if (!thread->in_barrier)
-      {
+      if (!thread->in_barrier) {
          if (thread->running)
             ++num_running;
 
@@ -119,8 +105,7 @@ bool SmtTimer::barrierRelease(bool release_all, smtthread_id_t thread_id)
          continue;
       }
 
-      if (threadHasEnoughInstructions(thread_num))
-      {
+      if (threadHasEnoughInstructions(thread_num)) {
          // We have enough instructions for now, keep the thread stalled
          continue;
       }
@@ -129,51 +114,41 @@ bool SmtTimer::barrierRelease(bool release_all, smtthread_id_t thread_id)
          ++num_running;
 
       // We want more instructions from this thread, release it
-      if (thread_num == thread_id)
-      {
+      if (thread_num == thread_id) {
          release_me = true;
       }
-      else
-      {
+      else {
          thread->in_barrier = false;
          thread->cond.signal();
       }
 
-      if (!release_all)
-      {
+      if (!release_all) {
          execute_thread = thread_num;
          break;
       }
    }
 
-
    UInt64 limit = 1;
 
-   while (num_running == 0)
-   {
+   while (num_running == 0) {
       // All threads have enough instructions. We still need to release someone to make forward progress.
       // Find the thread with the (approximately) lowest number of surplus instructions and release it
 
-      for(smtthread_id_t thread_num = 0; thread_num < m_threads.size(); ++thread_num)
-      {
+      for (smtthread_id_t thread_num = 0; thread_num < m_threads.size(); ++thread_num) {
          SmtThread *thread = m_threads[thread_num];
 
-         if (thread->in_barrier && thread->running && threadNumSurplusInstructions(thread_num) < limit)
-         {
+         if (thread->in_barrier && thread->running && threadNumSurplusInstructions(thread_num) < limit) {
             ++num_running;
 
-            if (thread_num == thread_id)
-            {
+            if (thread_num == thread_id) {
                release_me = true;
             }
-            else
-            {
+            else {
                thread->in_barrier = false;
                thread->cond.signal();
             }
 
-            if (!release_all)
-            {
+            if (!release_all) {
                execute_thread = thread_num;
                break;
             }
@@ -185,7 +160,6 @@ bool SmtTimer::barrierRelease(bool release_all, smtthread_id_t thread_id)
 
    return release_me;
 }
-
 
 bool SmtTimer::barrier(smtthread_id_t thread_id)
 {
@@ -199,12 +173,10 @@ bool SmtTimer::barrier(smtthread_id_t thread_id)
    smtthread->in_barrier = true;
    CLOG("smtbarrier", "Entry core %d thread %d", smtthread->core->getId(), thread->getId());
 
-   if (!isBarrierReached())
-   {
+   if (!isBarrierReached()) {
       smtthread->cond.wait(m_lock);
    }
-   else
-   {
+   else {
       bool release_me = barrierRelease(false, thread_id);
 
       if (release_me)
@@ -213,13 +185,12 @@ bool SmtTimer::barrier(smtthread_id_t thread_id)
          smtthread->cond.wait(m_lock);
    }
 
-   CLOG("smtbarrier", "Exit core %d thread %d (execute = %s)",
-     smtthread->core->getId(), thread->getId(), thread_id == execute_thread ? "true" : "false");
+   CLOG("smtbarrier", "Exit core %d thread %d (execute = %s)", smtthread->core->getId(), thread->getId(),
+        thread_id == execute_thread ? "true" : "false");
 
    // Will we call execute() ?
    return thread_id == execute_thread;
 }
-
 
 void SmtTimer::signalBarrier()
 {
@@ -232,8 +203,7 @@ void SmtTimer::roiBegin()
    SubsecondTime time = Sim()->getClockSkewMinimizationServer()->getGlobalTime();
    // Don't wait for any Sync/SpawnInstructions that were announced a while ago,
    // they were ignored because performance models were disabled.
-   for(smtthread_id_t smtthread_id = 0; smtthread_id < m_threads.size(); ++smtthread_id)
-   {
+   for (smtthread_id_t smtthread_id = 0; smtthread_id < m_threads.size(); ++smtthread_id) {
       m_threads[smtthread_id]->in_wakeup = false;
       synchronize(smtthread_id, time);
    }
@@ -244,8 +214,7 @@ void SmtTimer::threadStart(HooksManager::ThreadTime *argument)
    ScopedLock sl(m_lock);
 
    smtthread_id_t smtthread_id = findSmtThreadFromThread(argument->thread_id);
-   if (smtthread_id != INVALID_SMTTHREAD_ID)
-   {
+   if (smtthread_id != INVALID_SMTTHREAD_ID) {
       m_threads[smtthread_id]->running = true;
       notifyNumActiveThreadsChange();
    }
@@ -256,8 +225,7 @@ void SmtTimer::threadExit(HooksManager::ThreadTime *argument)
    ScopedLock sl(m_lock);
 
    smtthread_id_t smtthread_id = findSmtThreadFromThread(argument->thread_id);
-   if (smtthread_id != INVALID_SMTTHREAD_ID)
-   {
+   if (smtthread_id != INVALID_SMTTHREAD_ID) {
       m_threads[smtthread_id]->running = false;
       notifyNumActiveThreadsChange();
    }
@@ -272,8 +240,7 @@ void SmtTimer::threadStall(HooksManager::ThreadStall *argument)
    ScopedLock sl(m_lock);
 
    smtthread_id_t smtthread_id = findSmtThreadFromThread(argument->thread_id);
-   if (smtthread_id != INVALID_SMTTHREAD_ID)
-   {
+   if (smtthread_id != INVALID_SMTTHREAD_ID) {
       m_threads[smtthread_id]->running = false;
       notifyNumActiveThreadsChange();
    }
@@ -298,8 +265,7 @@ void SmtTimer::threadResume(HooksManager::ThreadResume *argument)
    // thread->now to the correct wakeup time.
 
    smtthread_id_t smtthread_id = findSmtThreadFromThread(argument->thread_id);
-   if (smtthread_id != INVALID_SMTTHREAD_ID)
-   {
+   if (smtthread_id != INVALID_SMTTHREAD_ID) {
       m_threads[smtthread_id]->in_wakeup = true;
       m_threads[smtthread_id]->running = true;
       notifyNumActiveThreadsChange();
@@ -315,14 +281,12 @@ void SmtTimer::threadMigrate(HooksManager::ThreadMigrate *argument)
 
    // If this thread was previously running on this core, mark it as gone
    smtthread_id_t smtthread_id = findSmtThreadFromThread(argument->thread_id);
-   if (smtthread_id != INVALID_SMTTHREAD_ID)
-   {
+   if (smtthread_id != INVALID_SMTTHREAD_ID) {
       SmtThread *thread = m_threads[smtthread_id];
       thread->running = false;
       thread->thread = NULL;
       notifyNumActiveThreadsChange();
-      if (thread->in_barrier)
-      {
+      if (thread->in_barrier) {
          thread->in_barrier = false;
          thread->cond.signal();
       }
@@ -330,11 +294,10 @@ void SmtTimer::threadMigrate(HooksManager::ThreadMigrate *argument)
 
    // If the new core is one of ours, mark it as running this thread
    smtthread_id = findSmtThreadFromCore(argument->core_id);
-   if (smtthread_id != INVALID_SMTTHREAD_ID)
-   {
-      #ifdef DEBUG_PERCYCLE
-         std::cout<<"** ["<<argument->thread_id<<"] threadMigrate"<<std::endl;
-      #endif
+   if (smtthread_id != INVALID_SMTTHREAD_ID) {
+#ifdef DEBUG_PERCYCLE
+      std::cout << "** [" << argument->thread_id << "] threadMigrate" << std::endl;
+#endif
       m_threads[smtthread_id]->in_wakeup = true;
       m_threads[smtthread_id]->running = true;
       m_threads[smtthread_id]->thread = Sim()->getThreadManager()->getThreadFromID(argument->thread_id);
@@ -346,10 +309,8 @@ void SmtTimer::simulate(smtthread_id_t thread_id)
 {
    SmtThread *thread = m_threads[thread_id];
 
-   if (threadNumSurplusInstructions(thread_id) > 128)
-   {
-      if (barrier(thread_id))
-      {
+   if (threadNumSurplusInstructions(thread_id) > 128) {
+      if (barrier(thread_id)) {
          execute();
 
          // We executed this cycle, make sure no-one else (potentially released through
@@ -357,8 +318,7 @@ void SmtTimer::simulate(smtthread_id_t thread_id)
          execute_thread = INVALID_THREAD_ID;
 
          ClockSkewMinimizationClient *client = thread->core->getClockSkewMinimizationClient();
-         if (client)
-         {
+         if (client) {
             in_sync = true;
             m_lock.release();
             client->synchronize();
@@ -380,12 +340,10 @@ void SmtTimer::disable()
 {
    enabled = false;
 
-   for(smtthread_id_t thread_num = 0; thread_num < m_threads.size(); ++thread_num)
-   {
+   for (smtthread_id_t thread_num = 0; thread_num < m_threads.size(); ++thread_num) {
       SmtThread *thread = m_threads[thread_num];
 
-      if (thread->in_barrier)
-      {
+      if (thread->in_barrier) {
          thread->in_barrier = false;
          thread->cond.signal();
       }
@@ -395,15 +353,13 @@ void SmtTimer::disable()
 char SmtTimer::getStateStr(smtthread_id_t thread_num)
 {
    SmtThread *thread = m_threads[thread_num];
-   if (thread->running)
-   {
+   if (thread->running) {
       if (thread->in_barrier)
          return 'B';
       else
          return 'R';
    }
-   else
-   {
+   else {
       if (thread->in_barrier)
          return 'b';
       else

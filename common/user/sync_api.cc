@@ -1,12 +1,12 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <assert.h>
-#include "simulator.h"
-#include "thread.h"
-#include "sync_client.h"
 #include "config_file.hpp"
+#include "simulator.h"
 #include "subsecond_time.h"
+#include "sync_client.h"
+#include "thread.h"
 #include "thread_manager.h"
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 void CarbonMutexInit(carbon_mutex_t *mux)
 {

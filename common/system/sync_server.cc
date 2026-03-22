@@ -1,32 +1,24 @@
 #include "sync_server.h"
-#include "sync_client.h"
-#include "simulator.h"
-#include "thread_manager.h"
-#include "subsecond_time.h"
+#include "sniper_exception.h"
 #include "config.hpp"
+#include "simulator.h"
+#include "subsecond_time.h"
+#include "sync_client.h"
+#include "thread_manager.h"
 
 // -- SimMutex -- //
 
-SimMutex::SimMutex()
-      : m_owner(NO_OWNER)
-{ }
+SimMutex::SimMutex() : m_owner(NO_OWNER)
+{
+}
 
 SimMutex::~SimMutex()
 {
-   #if 0 // Disabled: applications are not required to do proper cleanup
-   if (! m_waiting.empty()) {
-      printf("WARNING: Waiters remaining for SimMutex@%p: ", this);
-      while(! m_waiting.empty()) {
-         printf("%d ", m_waiting.front());
-         m_waiting.pop();
-      }
-      printf("\n");
-   }
-   #endif
 }
 
 bool SimMutex::isLocked(thread_id_t thread_id)
 {
+   // Assumes m_lock is held by caller
    if (m_owner == NO_OWNER)
       return false;
    else if (m_owner == thread_id)
@@ -35,174 +27,170 @@ bool SimMutex::isLocked(thread_id_t thread_id)
       return true;
 }
 
-SubsecondTime SimMutex::lock(thread_id_t thread_id, SubsecondTime time)
+SubsecondTime SimMutex::lock(thread_id_t thread_id, SubsecondTime time, ThreadManager *thread_manager)
 {
-   if (m_owner == NO_OWNER)
-   {
+   m_lock.acquire();
+   if (m_owner == NO_OWNER) {
       m_owner = thread_id;
+      m_lock.release();
       return time;
    }
-   else
-   {
+   else {
       m_waiting.push(thread_id);
-      return Sim()->getThreadManager()->stallThread(thread_id, ThreadManager::STALL_MUTEX, time);
+      m_lock.release();
+      SubsecondTime res = thread_manager->stallThread(thread_id, STALL_MUTEX, time);
+      return res;
    }
 }
 
-bool SimMutex::lock_async(thread_id_t thread_id, thread_id_t thread_by, SubsecondTime time)
+bool SimMutex::lock_async(thread_id_t thread_id, thread_id_t thread_by, SubsecondTime time, ThreadManager *thread_manager)
 {
-   if (m_owner == NO_OWNER)
-   {
+   m_lock.acquire();
+   if (m_owner == NO_OWNER) {
       m_owner = thread_id;
-      Sim()->getThreadManager()->resumeThread(m_owner, thread_by, time);
+      
+      thread_manager->resumeThread(m_owner, thread_by, time);
+      
+      m_lock.release();
       return true;
    }
-   else
-   {
+   else {
       m_waiting.push(thread_id);
+      m_lock.release();
       return false;
    }
 }
 
-thread_id_t SimMutex::unlock(thread_id_t thread_id, SubsecondTime time)
+thread_id_t SimMutex::unlock(thread_id_t thread_id, SubsecondTime time, ThreadManager *thread_manager)
 {
-   assert(m_owner == thread_id);
-   if (m_waiting.empty())
-   {
-      m_owner = NO_OWNER;
+   m_lock.acquire();
+   if (m_owner != thread_id) {
+      m_lock.release();
+      throw SimulationException("Attempted to unlock a mutex not owned by this thread.");
    }
-   else
-   {
+   
+   if (m_waiting.empty()) {
+      m_owner = NO_OWNER;
+      m_lock.release();
+   }
+   else {
       thread_id_t waiter = m_waiting.front();
       m_waiting.pop();
       m_owner = waiter;
-      Sim()->getThreadManager()->resumeThread(m_owner, thread_id, time);
+      
+      thread_manager->resumeThread(m_owner, thread_id, time);
+      
+      m_lock.release();
    }
    return m_owner;
 }
 
 // -- SimCond -- //
-SimCond::SimCond() {}
+SimCond::SimCond()
+{
+}
 SimCond::~SimCond()
 {
-   #if 0 // Disabled: applications are not required to do proper cleanup
-   if (!m_waiting.empty()) {
-      printf("Threads still waiting for SimCond@%p: ", this);
-      while(!m_waiting.empty()) {
-         printf("%u ", m_waiting.back().m_thread_id);
-         m_waiting.pop();
-      }
-      printf("\n");
+}
+
+SubsecondTime SimCond::wait(thread_id_t thread_id, SubsecondTime time, SimMutex *mux, ThreadManager *thread_manager)
+{
+   m_lock.acquire();
+   m_waiting.push(CondWaiter(thread_id, mux));
+   m_lock.release();
+   
+   // Release the mutex. It was held by caller.
+   mux->unlock(thread_id, time, thread_manager);
+   
+   SubsecondTime res = thread_manager->stallThread(thread_id, STALL_COND, time);
+   
+   // Re-acquire the mutex
+   mux->lock(thread_id, res, thread_manager);
+   
+   return res;
+}
+
+thread_id_t SimCond::signal(thread_id_t thread_id, SubsecondTime time, ThreadManager *thread_manager)
+{
+   m_lock.acquire();
+   if (m_waiting.empty()) {
+      m_lock.release();
+      return INVALID_THREAD_ID;
    }
-   #endif
-}
-
-SubsecondTime SimCond::wait(thread_id_t thread_id, SubsecondTime time, SimMutex * simMux)
-{
-   simMux->unlock(thread_id, time);
-
-   m_waiting.push(CondWaiter(thread_id, simMux));
-
-   return Sim()->getThreadManager()->stallThread(thread_id, ThreadManager::STALL_COND, time);
-}
-
-thread_id_t SimCond::signal(thread_id_t thread_id, SubsecondTime time)
-{
-   // If there is a list of threads waiting, wake up one of them
-   if (!m_waiting.empty())
-   {
-      CondWaiter woken = m_waiting.front();
+   else {
+      CondWaiter waiter = m_waiting.front();
       m_waiting.pop();
-
-      if (woken.m_mutex->lock_async(woken.m_thread_id, thread_id, time))
-      {
-         // Woken up thread is able to grab lock immediately
-         return woken.m_thread_id;
-      }
-      else
-      {
-         // Woken up thread is *NOT* able to grab lock immediately
-         return INVALID_THREAD_ID;
-      }
+      
+      thread_manager->resumeThread(waiter.m_thread_id, thread_id, time);
+      
+      m_lock.release();
+      return waiter.m_thread_id;
    }
-
-   // There are *NO* threads waiting on the condition variable
-   return INVALID_THREAD_ID;
 }
 
-void SimCond::broadcast(thread_id_t thread_id, SubsecondTime time)
+void SimCond::broadcast(thread_id_t thread_id, SubsecondTime time, ThreadManager *thread_manager)
 {
-   while(!m_waiting.empty())
-   {
-      CondWaiter woken = m_waiting.front();
+   m_lock.acquire();
+   while (!m_waiting.empty()) {
+      CondWaiter waiter = m_waiting.front();
       m_waiting.pop();
-      woken.m_mutex->lock_async(woken.m_thread_id, thread_id, time);
+      
+      thread_manager->resumeThread(waiter.m_thread_id, thread_id, time);
    }
+   m_lock.release();
 }
 
 // -- SimBarrier -- //
-SimBarrier::SimBarrier(UInt32 count)
-      : m_count(count)
+SimBarrier::SimBarrier(UInt32 count) : m_count(count)
 {
 }
-
 SimBarrier::~SimBarrier()
 {
-   if (!m_waiting.empty()) {
-      printf("Threads still waiting for SimBarrier@%p: ", this);
-      while(!m_waiting.empty()) {
-         printf("%u ", m_waiting.back());
-         m_waiting.pop();
-      }
-      printf("\n");
-   }
 }
 
-SubsecondTime SimBarrier::wait(thread_id_t thread_id, SubsecondTime time)
+SubsecondTime SimBarrier::wait(thread_id_t thread_id, SubsecondTime time, ThreadManager *thread_manager)
 {
+   m_lock.acquire();
    // We are the last thread to reach the barrier
-   if (m_waiting.size() == m_count - 1)
-   {
-      while(! m_waiting.empty())
-      {
-         // Resuming all the threads stalled at the barrier
-
+   if (m_waiting.size() == m_count - 1) {
+      while (!m_waiting.empty()) {
          thread_id_t waiter = m_waiting.front();
          m_waiting.pop();
-         Sim()->getThreadManager()->resumeThread(waiter, thread_id, time);
+         thread_manager->resumeThread(waiter, thread_id, time);
       }
+      m_lock.release();
       return time;
    }
-   else
-   {
+   else {
       m_waiting.push(thread_id);
-      return Sim()->getThreadManager()->stallThread(thread_id, ThreadManager::STALL_BARRIER, time);
+      m_lock.release();
+      SubsecondTime res = thread_manager->stallThread(thread_id, STALL_BARRIER, time);
+      return res;
    }
 }
 
 // -- SyncServer -- //
 
-SyncServer::SyncServer()
+SyncServer::SyncServer(SimulationContext *context)
+    : m_context(context), m_cfg(context->getConfigFile()), m_config(context->getConfig()), m_thread_manager(NULL)
 {
-   m_reschedule_cost = SubsecondTime::NS() * Sim()->getCfg()->getInt("perf_model/sync/reschedule_cost");
+   m_reschedule_cost = SubsecondTime::NS() * m_cfg->getInt("perf_model/sync/reschedule_cost");
 }
 
 SyncServer::~SyncServer()
-{ }
-
-SimMutex * SyncServer::getMutex(carbon_mutex_t *mux, bool canCreate)
 {
-   // if mux is the address of a pthread mutex (with default initialization, not through pthread_mutex_init),
-   // look it up in m_mutexes or create a new one if it's the first time we see it
+}
+
+SimMutex *SyncServer::getMutex(carbon_mutex_t *mux, bool canCreate)
+{
+   ScopedLock sl(m_mutexes_lock);
    if (m_mutexes.count(mux))
       return &m_mutexes[mux];
-   else if (canCreate)
-   {
+   else if (canCreate) {
       m_mutexes[mux] = SimMutex();
       return &m_mutexes[mux];
    }
-   else
-   {
+   else {
       LOG_ASSERT_ERROR(false, "Invalid mutex id passed");
       return NULL;
    }
@@ -210,52 +198,53 @@ SimMutex * SyncServer::getMutex(carbon_mutex_t *mux, bool canCreate)
 
 void SyncServer::mutexInit(thread_id_t thread_id, carbon_mutex_t *mux)
 {
-   ScopedLock sl(Sim()->getThreadManager()->getLock());
    getMutex(mux);
 }
 
-std::pair<SubsecondTime, bool> SyncServer::mutexLock(thread_id_t thread_id, carbon_mutex_t *mux, bool tryLock, SubsecondTime time)
+std::pair<SubsecondTime, bool> SyncServer::mutexLock(thread_id_t thread_id, carbon_mutex_t *mux, bool tryLock,
+                                                     SubsecondTime time)
 {
-   ScopedLock sl(Sim()->getThreadManager()->getLock());
    SimMutex *psimmux = getMutex(mux);
 
-   if (tryLock && psimmux->isLocked(thread_id))
-   {
-      // notify the owner of failure
-      return std::make_pair(time, false);
+   if (tryLock) {
+      psimmux->acquire();
+      if (psimmux->isLocked(thread_id)) {
+         psimmux->release();
+         return std::make_pair(time, false);
+      }
+      psimmux->setOwner(thread_id);
+      psimmux->release();
+      return std::make_pair(time + m_reschedule_cost, true);
    }
-   else
-   {
-      SubsecondTime time_end = psimmux->lock(thread_id, time);
+   else {
+      SubsecondTime time_end = psimmux->lock(thread_id, time, m_thread_manager);
       return std::make_pair(time_end + m_reschedule_cost, true);
    }
 }
 
 SubsecondTime SyncServer::mutexUnlock(thread_id_t thread_id, carbon_mutex_t *mux, SubsecondTime time)
 {
-   ScopedLock sl(Sim()->getThreadManager()->getLock());
    SimMutex *psimmux = getMutex(mux, false);
 
-   thread_id_t new_owner = psimmux->unlock(thread_id, time + m_reschedule_cost);
+   thread_id_t new_owner = psimmux->unlock(thread_id, time + m_reschedule_cost, m_thread_manager);
 
-   SubsecondTime new_time = time + (new_owner == SimMutex::NO_OWNER ? SubsecondTime::Zero() : m_reschedule_cost /* we had to call futex_wake */);
+   SubsecondTime new_time =
+       time +
+       (new_owner == SimMutex::NO_OWNER ? SubsecondTime::Zero() : m_reschedule_cost /* we had to call futex_wake */);
    return new_time;
 }
 
 // -- Condition Variable Stuffs -- //
-SimCond * SyncServer::getCond(carbon_cond_t *cond, bool canCreate)
+SimCond *SyncServer::getCond(carbon_cond_t *cond, bool canCreate)
 {
-   // if cond is the address of a pthread cond (with default initialization, not through pthread_cond_init),
-   // look it up in m_conds or create a new one if it's the first time we see it
+   ScopedLock sl(m_conds_lock);
    if (m_conds.count(cond))
       return &m_conds[cond];
-   else if (canCreate)
-   {
+   else if (canCreate) {
       m_conds[cond] = SimCond();
       return &m_conds[cond];
    }
-   else
-   {
+   else {
       LOG_ASSERT_ERROR(false, "Invalid cond id passed");
       return NULL;
    }
@@ -263,51 +252,47 @@ SimCond * SyncServer::getCond(carbon_cond_t *cond, bool canCreate)
 
 void SyncServer::condInit(thread_id_t thread_id, carbon_cond_t *cond)
 {
-   ScopedLock sl(Sim()->getThreadManager()->getLock());
    getCond(cond);
 }
 
 SubsecondTime SyncServer::condWait(thread_id_t thread_id, carbon_cond_t *cond, carbon_mutex_t *mux, SubsecondTime time)
 {
-   ScopedLock sl(Sim()->getThreadManager()->getLock());
-   SimMutex *psimmux = getMutex(mux);
    SimCond *psimcond = getCond(cond);
+   SimMutex *psimmux = getMutex(mux, false);
 
-   return psimcond->wait(thread_id, time, psimmux);
+   return psimcond->wait(thread_id, time, psimmux, m_thread_manager);
 }
 
 SubsecondTime SyncServer::condSignal(thread_id_t thread_id, carbon_cond_t *cond, SubsecondTime time)
 {
-   ScopedLock sl(Sim()->getThreadManager()->getLock());
    SimCond *psimcond = getCond(cond);
-
-   psimcond->signal(thread_id, time);
-
+   psimcond->signal(thread_id, time, m_thread_manager);
    return time;
 }
 
 SubsecondTime SyncServer::condBroadcast(thread_id_t thread_id, carbon_cond_t *cond, SubsecondTime time)
 {
-   ScopedLock sl(Sim()->getThreadManager()->getLock());
    SimCond *psimcond = getCond(cond);
-
-   psimcond->broadcast(thread_id, time);
-
+   psimcond->broadcast(thread_id, time, m_thread_manager);
    return time;
 }
 
+// -- Barrier Stuffs -- //
 void SyncServer::barrierInit(thread_id_t thread_id, carbon_barrier_t *barrier, UInt32 count)
 {
-   ScopedLock sl(Sim()->getThreadManager()->getLock());
-
+   ScopedLock sl(m_barriers_lock);
    m_barriers.push_back(SimBarrier(count));
-   *barrier = (carbon_barrier_t)m_barriers.size()-1;
+   // Use the address of the newly created barrier as the id
+   *barrier = (carbon_barrier_t)(m_barriers.size() - 1);
 }
 
 SubsecondTime SyncServer::barrierWait(thread_id_t thread_id, carbon_barrier_t *barrier, SubsecondTime time)
 {
-   ScopedLock sl(Sim()->getThreadManager()->getLock());
-   SimBarrier *psimbarrier = &m_barriers[*barrier];
+   m_barriers_lock.acquire();
+   UInt32 id = (UInt32)*barrier;
+   LOG_ASSERT_ERROR(id < m_barriers.size(), "Invalid barrier id: %d", id);
+   SimBarrier *psimbarrier = &m_barriers[id];
+   m_barriers_lock.release();
 
-   return psimbarrier->wait(thread_id, time);
+   return psimbarrier->wait(thread_id, time, m_thread_manager);
 }

@@ -1,75 +1,74 @@
 # The Sniper Multi-Core Simulator
 
-<img align="left" width="18%" alt="sniper-logo" src="https://github.com/user-attachments/assets/02b344ad-2163-4b4f-abb1-b0a0724b7fa9">
+Sniper is a next-generation parallel, high-speed, and accurate x86 simulator. It is designed for multi-core studies, providing high performance and detailed timing models (Interval, ROB).
 
-This is the source code for the Sniper multicore simulator originally developed
-by the Performance Lab research group at Ghent University, Belgium.
-Please refer to the NOTICE file in the top-level directory for
-licensing and copyright information.
+## 📋 Prerequisites
 
-Sniper is a next-generation parallel, high-speed, and accurate x86 simulator. This multi-core simulator 
-is based on the interval core model and the [Graphite](https://github.com/mit-carbon/Graphite) simulation 
-infrastructure, allowing for fast and accurate simulation and trading off simulation speed for accuracy to 
-allow a range of flexible simulation options when exploring different homogeneous and 
-heterogeneous multi-core architectures.
+Sniper requires a modern Linux environment (Ubuntu 22.04+ recommended).
 
-The Sniper simulator allows one to perform timing simulations for both multi-program workloads and multi-threaded, 
-shared-memory applications with 10s to 100+ cores at a high speed when compared to existing simulators. The main 
-feature of the simulator is its core model which is based on interval simulation, a fast mechanistic core model. Interval simulation 
-raises the level of abstraction in architectural simulation, which allows for faster simulator development and 
-evaluation times; it does so by 'jumping' between miss events, called intervals. Sniper has been validated against multi-socket 
-Intel Core2 and Nehalem systems, and provides average performance prediction errors within 25% at a simulation speed of up 
-to several MIPS.
+### System Packages (Ubuntu/Debian)
+```bash
+sudo apt update
+sudo apt install build-essential cmake git python3 python3-yaml \
+                 libsqlite3-dev libcurl4-openssl-dev zlib1g-dev \
+                 pkg-config wget xz-utils
+```
 
-This simulator and the interval core model are useful for uncore and system-level studies that require more detail than the 
-typical one-IPC models, but for which cycle-accurate simulators are too slow to allow workloads of meaningful sizes to be simulated. 
-As an added benefit, the interval core model allows the generation of CPI stacks, which show the number of cycles lost due to 
-different characteristics of the system, like the cache hierarchy or branch predictor, and leads to a better understanding of each 
-component's effect on total system performance. This extends the use of Sniper to application characterization and hardware/software co-design.
+### Compiler Requirements
+- **G++ 11+** or **Clang 15+**.
+- **Intel APX** features specifically require Clang 15 or newer for building micro-benchmarks.
 
-For additional information, please see our website: <https://snipersim.org>
+## 🚀 Quick Start (Modern Native Workflow)
 
-## Getting started
+### 1. Bootstrap the Environment
+```bash
+./bootstrap.sh
+```
+This fetches all dependencies (Intel SDE, Pin, XED), builds the simulator core, and prepares the workspace.
 
-A good starting point is <https://snipersim.org/w/Getting_Started>, and for
-more information about building the simulator and usage, please see 
-<https://snipersim.org/w/Manual>.
+### 2. Verify with the Doctor
+```bash
+./build/sniper doctor
+```
+Ensure all required tools (SDE, Clang) are correctly configured.
 
-## Publications
+### 3. Run a Full Simulation
+Record and simulate a workload in one command:
+```bash
+./build/sniper sim -- ./apx_test_bin
+```
 
-If you are using Sniper, please let us know by posting a message on
-our user forum.  If you use Sniper 6.0 or later in your research,
-(if you are using the Instruction-Window Centric core model, etc.),
-please acknowledge us by referencing our TACO 2014 paper:
+### 4. Fetch Dependencies Individually
+```bash
+./build/sniper fetch sde
+./build/sniper fetch pin
+```
 
-Trevor E. Carlson, Wim Heirman, Stijn Eyerman, Ibrahim Hur, Lieven
-Eeckhout, "An Evaluation of High-Level Mechanistic Core Models".
-In ACM Transactions on Architecture and Code Optimization (TACO),
-Volume 11, Issue 3, October 2014, Article No. 28
-http://dx.doi.org/10.1145/2629677
+## 🛠 Building from Source
+If you prefer building manually via CMake:
+```bash
+mkdir -p build && cd build
+cmake ..
+make -j$(nproc)
+```
 
-If you are using earlier versions of Sniper, please acknowledge
-us by referencing our SuperComputing 2011 paper:
+## 📚 Further Documentation
+- **[DEVELOPER.md](DEVELOPER.md):** Architectural guide and hot-path optimization.
+- **[GEMINI.md](GEMINI.md):** Modernization roadmap and feature verification status.
+- **`config/`:** Configuration files for core models, cache hierarchies, and uncore settings.
 
-Trevor E. Carlson, Wim Heirman, Lieven Eeckhout, "Sniper: Exploring
-the Level of Abstraction for Scalable and Accurate Parallel Multi-Core
-Simulation". Proceedings of the International Conference for High
-Performance Computing, Networking, Storage and Analysis (SC),
-pages 52:1--52:12, November 2011.
-http://dx.doi.org/10.1145/2063384.2063454
+## 🤝 Contributions
+Please refer to the Belgian research group at Ghent University for original development history. This modernization fork focuses on **Intel APX** support and native orchestration.
 
-## Sniper Resources
+## ⚠️ Troubleshooting
 
-More information on Sniper benchmarks and tutorials can be found at 
-<https://github.com/snipersim/benchmarks> and <https://snipersim.org/w/Sniper_Tutorials>.
-Also, check out <https://looppoint.github.io/> for our efforts on sampled simulation.
+### GLIBCXX ABI Mismatch
+Sniper is built with `_GLIBCXX_USE_CXX11_ABI=0` for compatibility with Intel Pin and SDE. If you encounter link errors related to `std::string` or `std::vector` when linking against system libraries, ensure those libraries are compatible with the old ABI or use the provided `bootstrap.sh` which handles the environment.
 
-## Getting Help, Reporting bugs, and Requesting Features
+### Missing SIFT Recorder
+If simulation fails with "Unable to resolve tool path", run:
+```bash
+./build/sniper fetch all
+```
+This ensures the SDE/Pin SIFT recorder tools are locally available in the project root.
 
-Given below are some of the most common channels that we provide for users and developers to get help, report
-bugs, request features, or engage in community discussions. 
-
-* **Google Groups**: A Google Groups page that can be used to start
-discussions or ask questions. Available at <https://groups.google.com/g/snipersim>.
-* **GitHub Issues**: A GitHub Issues page for reporting bugs or requesting
-features. Available at <https://github.com/snipersim/snipersim/issues>.

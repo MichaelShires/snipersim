@@ -7,20 +7,21 @@
 
 #define PAGE_SIZE 4096
 
-class MemGuard {
-   private:
-      char m_guard[2*PAGE_SIZE];
+class MemGuard
+{
+ private:
+   char m_guard[2 * PAGE_SIZE];
 
-      void protect();
-      void unprotect();
-      bool isAligned();
-      void* pagePointer();
+   void protect();
+   void unprotect();
+   bool isAligned();
+   void *pagePointer();
 
-   public:
-      MemGuard();
-      MemGuard(const MemGuard& m);
-      MemGuard& operator= (const MemGuard& m);
-      ~MemGuard();
+ public:
+   MemGuard();
+   MemGuard(const MemGuard &m);
+   MemGuard &operator=(const MemGuard &m);
+   ~MemGuard();
 };
 
-#endif //MEMGUARD_H
+#endif // MEMGUARD_H

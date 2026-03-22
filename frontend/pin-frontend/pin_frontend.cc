@@ -30,7 +30,7 @@ class PinFrontend : public frontend::Frontend<PinFrontend>
 
   private:
   // Methods
-  static void __sendInstructionSpecialized(threadid_t threadid, uint32_t num_addresses, bool isbefore);
+  static void __sendInstructionSpecialized(THREADID threadid, uint32_t num_addresses, bool isbefore);
   void initBaseCB();
   static void traceCallback(TRACE trace, void *v);
   static UINT32 addMemoryModeling(INS ins);
@@ -40,30 +40,8 @@ class PinFrontend : public frontend::Frontend<PinFrontend>
 
 
 // PinPlay w/ address translation: Translate IARG_MEMORYOP_EA to actual address
-ADDRINT translateAddress(ADDRINT addr, ADDRINT size)
-{
-  MEMORY_ADDR_TRANS_CALLBACK memory_trans_callback = 0;
-
-  // Get memory translation callback if exists
-  memory_trans_callback = PIN_GetMemoryAddressTransFunction();
-
-  // Check if we have a callback
-  if (memory_trans_callback != 0) {
-    // Prepare callback structure
-    PIN_MEM_TRANS_INFO mem_trans_info;
-    mem_trans_info.addr = addr;
-    mem_trans_info.bytes = size;
-    mem_trans_info.ip = 0; // ip;
-    mem_trans_info.memOpType = PIN_MEMOP_LOAD;
-    mem_trans_info.threadIndex = 0; // threadid;
-
-    // Get translated address from callback directly
-    addr = memory_trans_callback(&mem_trans_info, 0);
-  }
-
-  return addr;
-}
-
+// (Implemented in recorder_control.cc)
+extern ADDRINT translateAddress(ADDRINT addr, ADDRINT size);
 
 
 
@@ -205,13 +183,13 @@ template <> class FrontendSyscallModel<PinFrontend> : public FrontendSyscallMode
 
   public:
     void initSyscallModeling();
-    static void emulateSyscallFunc(threadid_t threadid, CONTEXT *ctxt);
-    static void syscallExitCallback(threadid_t threadid, CONTEXT *ctxt, SYSCALL_STANDARD syscall_standard, VOID *v);
-    static void syscallEntryCallback(threadid_t threadid, CONTEXT *ctxt, SYSCALL_STANDARD syscall_standard, void *v);
+    static void emulateSyscallFunc(THREADID threadid, CONTEXT *ctxt);
+    static void syscallExitCallback(THREADID threadid, CONTEXT *ctxt, SYSCALL_STANDARD syscall_standard, VOID *v);
+    static void syscallEntryCallback(THREADID threadid, CONTEXT *ctxt, SYSCALL_STANDARD syscall_standard, void *v);
 };
 
 // template specialization of the Syscall callback
-void FrontendSyscallModel<PinFrontend>::emulateSyscallFunc(threadid_t threadid, CONTEXT *ctxt)
+void FrontendSyscallModel<PinFrontend>::emulateSyscallFunc(THREADID threadid, CONTEXT *ctxt)
 {
   // 1: Send a thread ID to the backend if not done yet
   setTID(threadid);
@@ -245,7 +223,7 @@ void FrontendSyscallModel<PinFrontend>::emulateSyscallFunc(threadid_t threadid, 
 }
 
 void FrontendSyscallModel<PinFrontend>::syscallEntryCallback
-  (threadid_t threadid, CONTEXT *ctxt, SYSCALL_STANDARD syscall_standard, void *v)
+  (THREADID threadid, CONTEXT *ctxt, SYSCALL_STANDARD syscall_standard, void *v)
 {
    if (!m_thread_data[threadid].last_syscall_emulated)
    {
@@ -256,7 +234,7 @@ void FrontendSyscallModel<PinFrontend>::syscallEntryCallback
 }
 
 void FrontendSyscallModel<PinFrontend>::syscallExitCallback
-  (threadid_t threadid, CONTEXT *ctxt, SYSCALL_STANDARD syscall_standard, VOID *v)
+  (THREADID threadid, CONTEXT *ctxt, SYSCALL_STANDARD syscall_standard, VOID *v)
 {
    if (!m_thread_data[threadid].last_syscall_emulated)
    {
@@ -337,7 +315,7 @@ inline void FELock<PinFrontend>::release_lock()
 } // namespace frontend
 
 // Code specific to Pin called inside the general sendInstruction function
-void PinFrontend::__sendInstructionSpecialized(threadid_t threadid, uint32_t num_addresses, bool isbefore)
+void PinFrontend::__sendInstructionSpecialized(THREADID threadid, uint32_t num_addresses, bool isbefore)
 {
   if (isbefore)
   {

@@ -3,22 +3,21 @@
  */
 
 #include "windows.h"
-#include "log.h"
-#include "instruction.h"
 #include "core_model.h"
+#include "instruction.h"
 #include "interval_contention.h"
+#include "log.h"
 
 #include <algorithm>
 
-#include <sstream>
-#include <iostream>
-#include <iomanip>
 #include <assert.h>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 
-void Windows::WindowEntry::initialize(DynamicMicroOp* micro_op)
+void Windows::WindowEntry::initialize(DynamicMicroOp *micro_op)
 {
-   if (this->uop)
-   {
+   if (this->uop) {
       // Delete our old DynamicMicroOp before we overwrite it
       delete this->uop;
    }
@@ -36,19 +35,15 @@ void Windows::WindowEntry::initialize(DynamicMicroOp* micro_op)
 }
 
 Windows::Windows(int window_size, bool doFunctionalUnitContention, Core *core, const CoreModel *core_model)
-   : m_core_model(core_model)
-   , m_interval_contention(core_model->createIntervalContentionModel(core))
-   , m_double_window(new WindowEntry[2*window_size])
-   , m_exec_time_map(new uint32_t[2*window_size])
-   , m_do_functional_unit_contention(doFunctionalUnitContention)
-   , m_register_dependencies(new RegisterDependencies())
-   , m_memory_dependencies(new MemoryDependencies())
+    : m_core_model(core_model), m_interval_contention(core_model->createIntervalContentionModel(core)),
+      m_double_window(new WindowEntry[2 * window_size]), m_exec_time_map(new uint32_t[2 * window_size]),
+      m_do_functional_unit_contention(doFunctionalUnitContention), m_register_dependencies(new RegisterDependencies()),
+      m_memory_dependencies(new MemoryDependencies())
 {
    m_window_size = window_size;
-   m_double_window_size = 2*window_size;
+   m_double_window_size = 2 * window_size;
 
-   for(int i = 0; i < m_double_window_size; i++)
-   {
+   for (int i = 0; i < m_double_window_size; i++) {
       m_double_window[i].uop = NULL;
       m_double_window[i].setWindowIndex(i);
    }
@@ -70,8 +65,7 @@ Windows::~Windows()
 
 void Windows::clear()
 {
-   for (int i = 0; i < m_double_window_size; i++)
-   {
+   for (int i = 0; i < m_double_window_size; i++) {
       m_exec_time_map[i] = 0;
    }
 
@@ -88,8 +82,7 @@ void Windows::clear()
 
 void Windows::clearFunctionalUnitStats()
 {
-   for(unsigned int i = 0; i < (unsigned int)CPCONTR_TYPE_SIZE; ++i)
-   {
+   for (unsigned int i = 0; i < (unsigned int)CPCONTR_TYPE_SIZE; ++i) {
       m_cpcontr_bytype[i] = 0;
    }
    m_cpcontr_total = 0;
@@ -138,11 +131,11 @@ int Windows::windowIndex(const int index) const
 /**
  * Add the microOperation to the window and calculate its dependencies.
  */
-void Windows::add(DynamicMicroOp* micro_op)
+void Windows::add(DynamicMicroOp *micro_op)
 {
    LOG_ASSERT_ERROR(!wIsFull(), "Window is full");
 
-   WindowEntry& entry = getInstructionByIndex(m_window_tail);
+   WindowEntry &entry = getInstructionByIndex(m_window_tail);
    m_window_tail = incrementIndex(m_window_tail);
    m_window_length++;
    micro_op->setSequenceNumber(m_next_sequence_number);
@@ -155,61 +148,56 @@ void Windows::add(DynamicMicroOp* micro_op)
    m_memory_dependencies->setDependencies(*micro_op, lowestValidSequenceNumber);
 }
 
-Windows::WindowEntry& Windows::getInstructionByIndex(int index) const
+Windows::WindowEntry &Windows::getInstructionByIndex(int index) const
 {
    LOG_ASSERT_ERROR(index >= 0 && index < m_double_window_size, "Index is out of bounds");
    return m_double_window[index];
 }
 
-Windows::WindowEntry& Windows::getInstruction(uint64_t sequenceNumber) const
+Windows::WindowEntry &Windows::getInstruction(uint64_t sequenceNumber) const
 {
-   Windows::WindowEntry& windowHead = getInstructionByIndex(m_window_head__old_window_tail);
+   Windows::WindowEntry &windowHead = getInstructionByIndex(m_window_head__old_window_tail);
    int distance = windowHead.getSequenceNumber() - sequenceNumber;
    int index = windowIndex(windowHead.getWindowIndex() - distance);
 
-   Windows::WindowEntry& ret = getInstructionByIndex(index);
-   if (ret.getSequenceNumber() == sequenceNumber)
-   {
+   Windows::WindowEntry &ret = getInstructionByIndex(index);
+   if (ret.getSequenceNumber() == sequenceNumber) {
       return ret;
    }
-   else
-   {
+   else {
       std::cout << "Getting an instruction that is not in the window !!! That's it, I'm out of here !" << std::endl;
       exit(0);
    }
 }
 
-Windows::WindowEntry& Windows::getLastAdded() const
+Windows::WindowEntry &Windows::getLastAdded() const
 {
    return getInstructionByIndex(decrementIndex(m_window_tail));
 }
 
-Windows::WindowEntry& Windows::getInstructionToDispatch() const
+Windows::WindowEntry &Windows::getInstructionToDispatch() const
 {
    return getInstructionByIndex(m_window_head__old_window_tail);
 }
 
-Windows::WindowEntry& Windows::getOldestInstruction() const
+Windows::WindowEntry &Windows::getOldestInstruction() const
 {
    return getInstructionByIndex(m_old_window_head);
 }
 
 uint64_t Windows::getEffectiveCriticalPathLength(uint64_t critical_path_length, bool update_reason)
 {
-   if (!m_do_functional_unit_contention)
-   {
+   if (!m_do_functional_unit_contention) {
       return critical_path_length;
    }
-   else
-   {
+   else {
       return m_interval_contention->getEffectiveCriticalPathLength(critical_path_length, update_reason);
    }
 }
 
 void Windows::dispatchInstruction()
 {
-   if (m_old_window_length == m_window_size)
-   {
+   if (m_old_window_length == m_window_size) {
       // No longer keep track of instructions leaving the old window
       removeFunctionalUnitStats(getInstructionByIndex(m_old_window_head));
 
@@ -268,41 +256,39 @@ uint64_t Windows::getCriticalPathTail() const
 
 int Windows::getCriticalPathLength() const
 {
-   if ( ! (m_critical_path_head <= m_critical_path_tail) )
-   {
-      LOG_PRINT_WARNING_ONCE("Warning: Windows::getCriticalPathLength() - head:%lu > tail:%lu", m_critical_path_head, m_critical_path_tail);
+   if (!(m_critical_path_head <= m_critical_path_tail)) {
+      LOG_PRINT_WARNING_ONCE("Warning: Windows::getCriticalPathLength() - head:%lu > tail:%lu", m_critical_path_head,
+                             m_critical_path_tail);
       return 0;
    }
    return (m_critical_path_tail - m_critical_path_head);
 }
 
-uint64_t Windows::longLatencyOperationLatency(WindowEntry& uop)
+uint64_t Windows::longLatencyOperationLatency(WindowEntry &uop)
 {
-   if (uop.getExecTime() < m_critical_path_tail)
-   {
+   if (uop.getExecTime() < m_critical_path_tail) {
       // No critical path extension
       return 0;
    }
-   else if (uop.getExecTime() - m_critical_path_tail < m_core_model->getLongLatencyCutoff())
-   {
+   else if (uop.getExecTime() - m_critical_path_tail < m_core_model->getLongLatencyCutoff()) {
       // Extension smaller than LLL cutoff
       return 0;
    }
-   else
-   {
+   else {
       // Critical path extension longer than LLL cutoff
       return true;
    }
 }
 
-uint64_t Windows::updateCriticalPathTail(WindowEntry& uop)
+uint64_t Windows::updateCriticalPathTail(WindowEntry &uop)
 {
    uint64_t execTime = uop.getExecTime();
    if (execTime > m_critical_path_tail) {
       if (execTime - m_critical_path_tail > m_core_model->getLongLatencyCutoff()) {
          // Extending the critical path by huge amounts isn't healthy (see Redmine #113).
          // Instead, the caller should add the long latency directly (and attribute it) and call clearOldWindow()
-         LOG_PRINT_WARNING_ONCE("Warning: Updating the critical path by %lu > %u cycles", execTime - m_critical_path_tail, m_core_model->getLongLatencyCutoff());
+         LOG_PRINT_WARNING_ONCE("Warning: Updating the critical path by %lu > %u cycles",
+                                execTime - m_critical_path_tail, m_core_model->getLongLatencyCutoff());
       }
       uop.setCpContr(execTime - m_critical_path_tail);
       m_critical_path_tail = execTime;
@@ -312,7 +298,7 @@ uint64_t Windows::updateCriticalPathTail(WindowEntry& uop)
 
 int Windows::getMinimalFlushLatency(int width) const
 {
-   return (m_old_window_length+(width-1))/width;
+   return (m_old_window_length + (width - 1)) / width;
 }
 
 uint64_t Windows::getCpContrFraction(CpContrType type, uint64_t effective_cp_length) const
@@ -324,16 +310,19 @@ uint64_t Windows::getCpContrFraction(CpContrType type, uint64_t effective_cp_len
       return 0;
 }
 
-Windows::Iterator::Iterator(const Windows* const windows, int start, int stop): index(start), stop(stop), windows(windows) { }
+Windows::Iterator::Iterator(const Windows *const windows, int start, int stop)
+    : index(start), stop(stop), windows(windows)
+{
+}
 
 bool Windows::Iterator::hasNext()
 {
    return index != stop;
 }
 
-Windows::WindowEntry& Windows::Iterator::next()
+Windows::WindowEntry &Windows::Iterator::next()
 {
-   Windows::WindowEntry& ret = windows->getInstructionByIndex(index);
+   Windows::WindowEntry &ret = windows->getInstructionByIndex(index);
    index = windows->incrementIndex(index);
    return ret;
 }
@@ -350,34 +339,32 @@ Windows::Iterator Windows::getOldWindowIterator() const
 
 int Windows::calculateBranchResolutionLatency()
 {
-   Windows::WindowEntry& micro_op = getInstructionToDispatch();
+   Windows::WindowEntry &micro_op = getInstructionToDispatch();
    uint32_t br_resolution_latency = 0;
 
    // The m_exec_time_map is empty when the algorithm starts !
 
    // Mark direct producers of this instruction
-   for(uint32_t i = 0; i < micro_op.getDynMicroOp()->getDependenciesLength(); i++)
-   {
-      if (oldWindowContains(micro_op.getDynMicroOp()->getDependency(i)))
-      {
-         Windows::WindowEntry& producer = getInstruction(micro_op.getDynMicroOp()->getDependency(i));
+   for (uint32_t i = 0; i < micro_op.getDynMicroOp()->getDependenciesLength(); i++) {
+      if (oldWindowContains(micro_op.getDynMicroOp()->getDependency(i))) {
+         Windows::WindowEntry &producer = getInstruction(micro_op.getDynMicroOp()->getDependency(i));
          m_exec_time_map[producer.getWindowIndex()] = producer.getDynMicroOp()->getExecLatency();
       }
    }
 
    // Find/mark producers of producers
-   for (int i = windowIndex(m_window_head__old_window_tail - 1), j = 0; j < m_old_window_length; i = windowIndex(i - 1), j++)
+   for (int i = windowIndex(m_window_head__old_window_tail - 1), j = 0; j < m_old_window_length;
+        i = windowIndex(i - 1), j++)
    {
-      if (m_exec_time_map[i])
-      {
+      if (m_exec_time_map[i]) {
          // There is a path to the committed branch: check the dependencies
-         Windows::WindowEntry& op = getInstructionByIndex(i);
-         for (uint32_t k = 0; k < op.getDynMicroOp()->getDependenciesLength(); k++)
-         {
-            if (oldWindowContains(op.getDynMicroOp()->getDependency(k)))
-            {
-               Windows::WindowEntry& producer = getInstruction(op.getDynMicroOp()->getDependency(k));
-               m_exec_time_map[producer.getWindowIndex()] = std::max((producer.getDynMicroOp()->getExecLatency() + m_exec_time_map[i]), m_exec_time_map[producer.getWindowIndex()]);
+         Windows::WindowEntry &op = getInstructionByIndex(i);
+         for (uint32_t k = 0; k < op.getDynMicroOp()->getDependenciesLength(); k++) {
+            if (oldWindowContains(op.getDynMicroOp()->getDependency(k))) {
+               Windows::WindowEntry &producer = getInstruction(op.getDynMicroOp()->getDependency(k));
+               m_exec_time_map[producer.getWindowIndex()] =
+                   std::max((producer.getDynMicroOp()->getExecLatency() + m_exec_time_map[i]),
+                            m_exec_time_map[producer.getWindowIndex()]);
             }
          }
 
@@ -394,8 +381,7 @@ String Windows::toString()
 {
    std::ostringstream out;
    out << "|";
-   for(int i = 0; i < m_double_window_size; i++)
-   {
+   for (int i = 0; i < m_double_window_size; i++) {
       if (i == m_old_window_head)
          out << "OH";
       if (i == m_window_head__old_window_tail)
@@ -405,72 +391,72 @@ String Windows::toString()
       out << std::setfill(' ') << std::setw(5) << getInstructionByIndex(i).getWindowIndex() << "|";
    }
    out << std::endl << "|";
-   for(int i = 0; i < m_double_window_size; i++)
+   for (int i = 0; i < m_double_window_size; i++)
       out << std::setfill(' ') << std::setw(7) << getInstructionByIndex(i).getSequenceNumber() << "|";
    out << std::endl;
 
-   for(int i = 0; i < m_double_window_size; i++)
+   for (int i = 0; i < m_double_window_size; i++)
       out << getInstructionByIndex(i).getMicroOp()->toString() << std::endl;
    return String(out.str().c_str());
 }
 
-CpContrType getCpContrType(const Windows::WindowEntry& entry)
+CpContrType getCpContrType(const Windows::WindowEntry &entry)
 {
    const MicroOp &uop = *entry.getMicroOp();
-   switch(uop.getSubtype()) {
-      case MicroOp::UOP_SUBTYPE_FP_ADDSUB:
-         return CPCONTR_TYPE_FP_ADDSUB;
-      case MicroOp::UOP_SUBTYPE_FP_MULDIV:
-         return CPCONTR_TYPE_FP_MULDIV;
-      case MicroOp::UOP_SUBTYPE_LOAD:
-         switch(entry.getDynMicroOp()->getDCacheHitWhere()) {
-            case HitWhere::L1_OWN:
-               return CPCONTR_TYPE_LOAD_L1;
-            case HitWhere::L2_OWN:
-            case HitWhere::L1_SIBLING:
-            case HitWhere::L2_SIBLING:
-               return CPCONTR_TYPE_LOAD_L2;
-            case HitWhere::L3_OWN:
-            case HitWhere::L3_SIBLING:
-               return CPCONTR_TYPE_LOAD_L3;
-            default:
-               return CPCONTR_TYPE_LOAD_LX;
-         }
-      case MicroOp::UOP_SUBTYPE_STORE:
-         return CPCONTR_TYPE_STORE;
-      case MicroOp::UOP_SUBTYPE_GENERIC:
-         return CPCONTR_TYPE_GENERIC;
-      case MicroOp::UOP_SUBTYPE_BRANCH:
-         return CPCONTR_TYPE_BRANCH;
+   switch (uop.getSubtype()) {
+   case MicroOp::UOP_SUBTYPE_FP_ADDSUB:
+      return CPCONTR_TYPE_FP_ADDSUB;
+   case MicroOp::UOP_SUBTYPE_FP_MULDIV:
+      return CPCONTR_TYPE_FP_MULDIV;
+   case MicroOp::UOP_SUBTYPE_LOAD:
+      switch (entry.getDynMicroOp()->getDCacheHitWhere()) {
+      case HitWhere::L1_OWN:
+         return CPCONTR_TYPE_LOAD_L1;
+      case HitWhere::L2_OWN:
+      case HitWhere::L1_SIBLING:
+      case HitWhere::L2_SIBLING:
+         return CPCONTR_TYPE_LOAD_L2;
+      case HitWhere::L3_OWN:
+      case HitWhere::L3_SIBLING:
+         return CPCONTR_TYPE_LOAD_L3;
       default:
-         LOG_PRINT_ERROR("Unknown uop_subtype %d", uop.getSubtype());
+         return CPCONTR_TYPE_LOAD_LX;
+      }
+   case MicroOp::UOP_SUBTYPE_STORE:
+      return CPCONTR_TYPE_STORE;
+   case MicroOp::UOP_SUBTYPE_GENERIC:
+      return CPCONTR_TYPE_GENERIC;
+   case MicroOp::UOP_SUBTYPE_BRANCH:
+      return CPCONTR_TYPE_BRANCH;
+   default:
+      LOG_PRINT_ERROR("Unknown uop_subtype %d", uop.getSubtype());
    }
    assert(false);
 }
 
 String CpContrTypeString(CpContrType type)
 {
-   switch(type) {
-      case CPCONTR_TYPE_FP_ADDSUB:
-         return "fp_addsub";
-      case CPCONTR_TYPE_FP_MULDIV:
-         return "fp_muldiv";
-      case CPCONTR_TYPE_LOAD_L1:
-         return "load_l1";
-      case CPCONTR_TYPE_LOAD_L2:
-         return "load_l2";
-      case CPCONTR_TYPE_LOAD_L3:
-         return "load_l3";
-      case CPCONTR_TYPE_LOAD_LX:
-         return "load_other";
-      case CPCONTR_TYPE_STORE:
-         return "store";
-      case CPCONTR_TYPE_GENERIC:
-         return "generic";
-      case CPCONTR_TYPE_BRANCH:
-         return "branch";
-      default:
-         LOG_PRINT_ERROR("Unknown CpContrType %u", type);
-         return "unknown";
+   switch (type) {
+   case CPCONTR_TYPE_FP_ADDSUB:
+      return "fp_addsub";
+   case CPCONTR_TYPE_FP_MULDIV:
+      return "fp_muldiv";
+   case CPCONTR_TYPE_LOAD_L1:
+      return "load_l1";
+   case CPCONTR_TYPE_LOAD_L2:
+      return "load_l2";
+   case CPCONTR_TYPE_LOAD_L3:
+      return "load_l3";
+   case CPCONTR_TYPE_LOAD_LX:
+      return "load_other";
+   case CPCONTR_TYPE_STORE:
+      return "store";
+   case CPCONTR_TYPE_GENERIC:
+      return "generic";
+   case CPCONTR_TYPE_BRANCH:
+      return "branch";
+   default:
+      LOG_PRINT_ERROR("Unknown CpContrType %u", type);
+      return "unknown";
    }
 }

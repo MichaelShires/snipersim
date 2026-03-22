@@ -1,36 +1,37 @@
-#include "hooks_py.h"
-#include "simulator.h"
 #include "dvfs_manager.h"
+#include "hooks_py.h"
 #include "magic_server.h"
+#include "simulator.h"
 
-
-static const ComponentPeriod * getDomain(SInt64 domain_id, bool allow_global)
+static const ComponentPeriod *getDomain(SInt64 domain_id, bool allow_global)
 {
    if (domain_id < 0) {
       if (allow_global) {
-         switch(domain_id) {
-            case -1:
-               return Sim()->getDvfsManager()->getGlobalDomain();
-            default:
-               PyErr_SetString(PyExc_ValueError, "Invalid global domain ID");
-               return NULL;
+         switch (domain_id) {
+         case -1:
+            return Sim()->getDvfsManager()->getGlobalDomain();
+         default:
+            PyErr_SetString(PyExc_ValueError, "Invalid global domain ID");
+            return NULL;
          }
-      } else {
+      }
+      else {
          PyErr_SetString(PyExc_ValueError, "Can only set core frequency, not global domains");
          return NULL;
       }
-   } else {
+   }
+   else {
       if (domain_id >= Sim()->getConfig()->getApplicationCores()) {
          PyErr_SetString(PyExc_ValueError, "Invalid core ID");
          return NULL;
-      }else
+      }
+      else
          return Sim()->getDvfsManager()->getCoreDomain(domain_id);
    }
    return NULL;
 }
 
-static PyObject *
-getFrequency(PyObject *self, PyObject *args)
+static PyObject *getFrequency(PyObject *self, PyObject *args)
 {
    long int domain_id = -999;
 
@@ -46,8 +47,7 @@ getFrequency(PyObject *self, PyObject *args)
    return PyLong_FromLong(freq);
 }
 
-static PyObject *
-setFrequency(PyObject *self, PyObject *args)
+static PyObject *setFrequency(PyObject *self, PyObject *args)
 {
    long int core_id = -999;
    long int freq_mhz = -1;
@@ -65,21 +65,13 @@ setFrequency(PyObject *self, PyObject *args)
    Py_RETURN_NONE;
 }
 
-
 static PyMethodDef PyDvfsMethods[] = {
-   {"get_frequency",  getFrequency, METH_VARARGS, "Get core or global frequency, in MHz."},
-   {"set_frequency",  setFrequency, METH_VARARGS, "Set core frequency, in MHz."},
-   {NULL, NULL, 0, NULL} /* Sentinel */
+    {"get_frequency", getFrequency, METH_VARARGS, "Get core or global frequency, in MHz."},
+    {"set_frequency", setFrequency, METH_VARARGS, "Set core frequency, in MHz."},
+    {NULL, NULL, 0, NULL} /* Sentinel */
 };
 
-static PyModuleDef PyDvfsModule = {
-	PyModuleDef_HEAD_INIT,
-	"sim_dvfs",
-	"",
-	-1,
-	PyDvfsMethods,
-	NULL, NULL, NULL, NULL
-};
+static PyModuleDef PyDvfsModule = {PyModuleDef_HEAD_INIT, "sim_dvfs", "", -1, PyDvfsMethods, NULL, NULL, NULL, NULL};
 
 PyMODINIT_FUNC PyInit_sim_dvfs(void)
 {

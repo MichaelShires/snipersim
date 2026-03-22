@@ -1,5 +1,6 @@
 #include "sift_format.h"
 
+#include <cinttypes>
 #include <sys/file.h>
 #include <sys/stat.h>
 
@@ -22,10 +23,12 @@ void FrontendControl <T>::setInstrumentationMode(Sift::Mode mode)
     switch(mode)
     {
       case Sift::ModeIcount:
+      case Sift::ModeNoSimulation:
         this->set_any_thread_in_detail(false);
         break;
       case Sift::ModeMemory:
       case Sift::ModeDetailed:
+      case Sift::ModeCacheOnly:
         this->set_any_thread_in_detail(true);
         break;
       case Sift::ModeStop:

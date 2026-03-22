@@ -1,11 +1,9 @@
 #include "dynamic_micro_op.h"
-#include "log.h"
 #include "core_model.h"
+#include "log.h"
 
 DynamicMicroOp::DynamicMicroOp(const MicroOp *uop, const CoreModel *core_model, ComponentPeriod period)
-   : m_uop(uop)
-   , m_core_model(core_model)
-   , m_period(period)
+    : m_uop(uop), m_core_model(core_model), m_period(period)
 {
    LOG_ASSERT_ERROR(period != SubsecondTime::Zero(), "MicroOp Period is == SubsecondTime::Zero()");
 
@@ -29,7 +27,7 @@ DynamicMicroOp::DynamicMicroOp(const MicroOp *uop, const CoreModel *core_model, 
 
    this->m_forceLongLatencyLoad = false;
 
-   for(uint32_t i = 0 ; i < MAXIMUM_NUMBER_OF_DEPENDENCIES; i++)
+   for (uint32_t i = 0; i < MAXIMUM_NUMBER_OF_DEPENDENCIES; i++)
       this->dependencies[i] = -1;
 
    LOG_ASSERT_ERROR(m_uop != NULL, "uop is NULL");
@@ -42,22 +40,19 @@ DynamicMicroOp::~DynamicMicroOp()
 {
 }
 
-void DynamicMicroOp::squash(std::vector<DynamicMicroOp*>* array)
+void DynamicMicroOp::squash(std::vector<DynamicMicroOp *> *array)
 {
    squashed = true;
 
-   if (array)
-   {
+   if (array) {
       // Fix up isFirst/isLast after possibly squashing the first/last microop in a list
-      for(int index = 0; index < (int)array->size(); ++index)
-         if (!(*array)[index]->isSquashed())
-         {
+      for (int index = 0; index < (int)array->size(); ++index)
+         if (!(*array)[index]->isSquashed()) {
             (*array)[index]->setFirst(true);
             break;
          }
-      for(int index = array->size() - 1; index >= 0; --index)
-         if (!(*array)[index]->isSquashed())
-         {
+      for (int index = array->size() - 1; index >= 0; --index)
+         if (!(*array)[index]->isSquashed()) {
             (*array)[index]->setLast(true);
             break;
          }
@@ -68,8 +63,10 @@ uint64_t DynamicMicroOp::getDependency(uint32_t index) const
 {
    if (index < this->intraInstructionDependencies) {
       return this->sequenceNumber - this->microOpTypeOffset - this->intraInstructionDependencies + index;
-   } else {
-      assert((index >= this->intraInstructionDependencies) && ((index - this->intraInstructionDependencies) < this->dependenciesLength));
+   }
+   else {
+      assert((index >= this->intraInstructionDependencies) &&
+             ((index - this->intraInstructionDependencies) < this->dependenciesLength));
       return this->dependencies[index - this->intraInstructionDependencies];
    }
 }
@@ -87,39 +84,47 @@ void DynamicMicroOp::removeDependency(uint64_t sequenceNumber)
 {
    if (sequenceNumber >= this->sequenceNumber - this->microOpTypeOffset - this->intraInstructionDependencies) {
       // Intra-instruction dependency
-      while(intraInstructionDependencies && !(sequenceNumber == this->sequenceNumber - this->microOpTypeOffset - this->intraInstructionDependencies)) {
-         // Remove the first intra-instruction dependency, but since this is not the one to be removed, add it to the regular dependencies list
-         dependencies[dependenciesLength] = this->sequenceNumber - this->microOpTypeOffset - this->intraInstructionDependencies;
+      while (intraInstructionDependencies &&
+             !(sequenceNumber == this->sequenceNumber - this->microOpTypeOffset - this->intraInstructionDependencies))
+      {
+         // Remove the first intra-instruction dependency, but since this is not the one to be removed, add it to the
+         // regular dependencies list
+         dependencies[dependenciesLength] =
+             this->sequenceNumber - this->microOpTypeOffset - this->intraInstructionDependencies;
          dependenciesLength++;
-         LOG_ASSERT_ERROR(dependenciesLength < MAXIMUM_NUMBER_OF_DEPENDENCIES, "dependenciesLength(%u) > MAX(%u)", dependenciesLength, MAXIMUM_NUMBER_OF_DEPENDENCIES);
+         LOG_ASSERT_ERROR(dependenciesLength < MAXIMUM_NUMBER_OF_DEPENDENCIES, "dependenciesLength(%u) > MAX(%u)",
+                          dependenciesLength, MAXIMUM_NUMBER_OF_DEPENDENCIES);
          intraInstructionDependencies--;
       }
-      // Make sure the exit condition was that the dependency to be removed is now the first one, not that we have exhausted the list
-      LOG_ASSERT_ERROR(intraInstructionDependencies > 0, "Something went wrong while removing an intra-instruction dependency");
+      // Make sure the exit condition was that the dependency to be removed is now the first one, not that we have
+      // exhausted the list
+      LOG_ASSERT_ERROR(intraInstructionDependencies > 0,
+                       "Something went wrong while removing an intra-instruction dependency");
       // Remove the first intra-instruction dependency by decrementing intraInstructionDependencies
       intraInstructionDependencies--;
-   } else {
+   }
+   else {
       // Inter-instruction dependency
       LOG_ASSERT_ERROR(dependenciesLength > 0, "Cannot remove dependency when there are none");
-      if (dependencies[dependenciesLength-1] == sequenceNumber)
+      if (dependencies[dependenciesLength - 1] == sequenceNumber)
          ; // sequenceNumber to remove is already at the end, we can just decrement dependenciesLength
       else {
          // Move sequenceNumber to the end of the list
          uint64_t idx = Tools::index(dependencies, dependenciesLength, sequenceNumber);
          LOG_ASSERT_ERROR(idx != UINT64_MAX, "MicroOp dependency list does not contain %ld", sequenceNumber);
-         Tools::swap(dependencies, idx, dependenciesLength-1);
+         Tools::swap(dependencies, idx, dependenciesLength - 1);
       }
       dependenciesLength--;
    }
 }
 
-const Memory::Access& DynamicMicroOp::getLoadAccess() const
+const Memory::Access &DynamicMicroOp::getLoadAccess() const
 {
    assert(this->getMicroOp()->isLoad());
    return this->address;
 }
 
-const Memory::Access& DynamicMicroOp::getStoreAccess() const
+const Memory::Access &DynamicMicroOp::getStoreAccess() const
 {
    assert(this->getMicroOp()->isStore());
    return this->address;

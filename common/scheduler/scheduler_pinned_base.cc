@@ -1,8 +1,8 @@
 #include "scheduler_pinned_base.h"
-#include "simulator.h"
 #include "core_manager.h"
-#include "performance_model.h"
 #include "os_compat.h"
+#include "performance_model.h"
+#include "simulator.h"
 
 #include <sstream>
 
@@ -12,20 +12,16 @@
 // If multiple threads share a core, they are time-shared with a configurable quantum
 
 SchedulerPinnedBase::SchedulerPinnedBase(ThreadManager *thread_manager, SubsecondTime quantum)
-   : SchedulerDynamic(thread_manager)
-   , m_quantum(quantum)
-   , m_last_periodic(SubsecondTime::Zero())
-   , m_core_thread_running(Sim()->getConfig()->getApplicationCores(), INVALID_THREAD_ID)
-   , m_quantum_left(Sim()->getConfig()->getApplicationCores(), SubsecondTime::Zero())
+    : SchedulerDynamic(thread_manager), m_quantum(quantum), m_last_periodic(SubsecondTime::Zero()),
+      m_core_thread_running(Sim()->getConfig()->getApplicationCores(), INVALID_THREAD_ID),
+      m_quantum_left(Sim()->getConfig()->getApplicationCores(), SubsecondTime::Zero())
 {
 }
 
 core_id_t SchedulerPinnedBase::findFreeCoreForThread(thread_id_t thread_id)
 {
-   for(core_id_t core_id = 0; core_id < (core_id_t)Sim()->getConfig()->getApplicationCores(); ++core_id)
-   {
-      if (m_thread_info[thread_id].hasAffinity(core_id) && m_core_thread_running[core_id] == INVALID_THREAD_ID)
-      {
+   for (core_id_t core_id = 0; core_id < (core_id_t)Sim()->getConfig()->getApplicationCores(); ++core_id) {
+      if (m_thread_info[thread_id].hasAffinity(core_id) && m_core_thread_running[core_id] == INVALID_THREAD_ID) {
          return core_id;
       }
    }
@@ -34,29 +30,26 @@ core_id_t SchedulerPinnedBase::findFreeCoreForThread(thread_id_t thread_id)
 
 core_id_t SchedulerPinnedBase::threadCreate(thread_id_t thread_id)
 {
+   ScopedLock sl(m_lock);
    if (m_thread_info.size() <= (size_t)thread_id)
       m_thread_info.resize(m_thread_info.size() + 16);
 
-   if (m_thread_info[thread_id].hasAffinity())
-   {
+   if (m_thread_info[thread_id].hasAffinity()) {
       // Thread already has an affinity set at/before creation
    }
-   else
-   {
+   else {
       threadSetInitialAffinity(thread_id);
    }
 
    // The first thread scheduled on this core can start immediately, the others have to wait
    core_id_t free_core_id = findFreeCoreForThread(thread_id);
-   if (free_core_id != INVALID_CORE_ID)
-   {
+   if (free_core_id != INVALID_CORE_ID) {
       m_thread_info[thread_id].setCoreRunning(free_core_id);
       m_core_thread_running[free_core_id] = thread_id;
       m_quantum_left[free_core_id] = m_quantum;
       return free_core_id;
    }
-   else
-   {
+   else {
       m_thread_info[thread_id].setCoreRunning(INVALID_CORE_ID);
       return INVALID_CORE_ID;
    }
@@ -64,21 +57,19 @@ core_id_t SchedulerPinnedBase::threadCreate(thread_id_t thread_id)
 
 void SchedulerPinnedBase::threadYield(thread_id_t thread_id)
 {
+   ScopedLock sl(m_lock);
    core_id_t core_id = m_thread_info[thread_id].getCoreRunning();
 
-   if (core_id != INVALID_CORE_ID)
-   {
+   if (core_id != INVALID_CORE_ID) {
       Core *core = Sim()->getCoreManager()->getCoreFromID(core_id);
       SubsecondTime time = core->getPerformanceModel()->getElapsedTime();
 
       m_quantum_left[core_id] = SubsecondTime::Zero();
       reschedule(time, core_id, false);
 
-      if (!m_thread_info[thread_id].hasAffinity(core_id))
-      {
+      if (!m_thread_info[thread_id].hasAffinity(core_id)) {
          core_id_t free_core_id = findFreeCoreForThread(thread_id);
-         if (free_core_id != INVALID_CORE_ID)
-         {
+         if (free_core_id != INVALID_CORE_ID) {
             // We have just been moved to a different core(s), and one of them is free. Schedule us there now.
             reschedule(time, free_core_id, false);
          }
@@ -86,30 +77,28 @@ void SchedulerPinnedBase::threadYield(thread_id_t thread_id)
    }
 }
 
-bool SchedulerPinnedBase::threadSetAffinity(thread_id_t calling_thread_id, thread_id_t thread_id, size_t cpusetsize, const cpu_set_t *mask)
+bool SchedulerPinnedBase::threadSetAffinity(thread_id_t calling_thread_id, thread_id_t thread_id, size_t cpusetsize,
+                                            const cpu_set_t *mask)
 {
+   ScopedLock sl(m_lock);
    if (m_thread_info.size() <= (size_t)thread_id)
       m_thread_info.resize(thread_id + 16);
 
    m_thread_info[thread_id].setExplicitAffinity();
 
-   if (!mask)
-   {
+   if (!mask) {
       // No mask given: free to schedule anywhere.
-      for(core_id_t core_id = 0; core_id < (core_id_t)Sim()->getConfig()->getApplicationCores(); ++core_id)
-      {
+      for (core_id_t core_id = 0; core_id < (core_id_t)Sim()->getConfig()->getApplicationCores(); ++core_id) {
          m_thread_info[thread_id].addAffinity(core_id);
       }
    }
-   else
-   {
+   else {
       m_thread_info[thread_id].clearAffinity();
 
-      for(unsigned int cpu = 0; cpu < 8 * cpusetsize; ++cpu)
-      {
-         if (CPU_ISSET_S(cpu, cpusetsize, mask))
-         {
-            LOG_ASSERT_ERROR(cpu < Sim()->getConfig()->getApplicationCores(), "Invalid core %d found in sched_setaffinity() mask", cpu);
+      for (unsigned int cpu = 0; cpu < 8 * cpusetsize; ++cpu) {
+         if (CPU_ISSET_S(cpu, cpusetsize, mask)) {
+            LOG_ASSERT_ERROR(cpu < Sim()->getConfig()->getApplicationCores(),
+                             "Invalid core %d found in sched_setaffinity() mask", cpu);
 
             m_thread_info[thread_id].addAffinity(cpu);
          }
@@ -120,25 +109,27 @@ bool SchedulerPinnedBase::threadSetAffinity(thread_id_t calling_thread_id, threa
    if (thread_id >= (thread_id_t)Sim()->getThreadManager()->getNumThreads())
       return true;
 
-   if (thread_id == calling_thread_id)
-   {
+   if (thread_id == calling_thread_id) {
       threadYield(thread_id);
    }
-   else if (m_thread_info[thread_id].isRunning()                           // Thread is running
-            && !m_thread_info[thread_id].hasAffinity(m_thread_info[thread_id].getCoreRunning())) // but not where we want it to
+   else if (m_thread_info[thread_id].isRunning() // Thread is running
+            && !m_thread_info[thread_id].hasAffinity(
+                   m_thread_info[thread_id].getCoreRunning())) // but not where we want it to
    {
       // Reschedule the thread as soon as possible
       m_quantum_left[m_thread_info[thread_id].getCoreRunning()] = SubsecondTime::Zero();
    }
-   else if (m_threads_runnable[thread_id]                                  // Thread is runnable
-            && !m_thread_info[thread_id].isRunning())                      // Thread is not running (we can't preempt it outside of the barrier)
+   else if (m_threads_runnable[thread_id] // Thread is runnable
+            &&
+            !m_thread_info[thread_id].isRunning()) // Thread is not running (we can't preempt it outside of the barrier)
    {
       core_id_t free_core_id = findFreeCoreForThread(thread_id);
-      if (free_core_id != INVALID_THREAD_ID)                               // Thread's new core is free
+      if (free_core_id != INVALID_THREAD_ID) // Thread's new core is free
       {
          // We have just been moved to a different core, and that core is free. Schedule us there now.
          Core *core = Sim()->getCoreManager()->getCoreFromID(free_core_id);
-         SubsecondTime time = std::max(core->getPerformanceModel()->getElapsedTime(), Sim()->getClockSkewMinimizationServer()->getGlobalTime());
+         SubsecondTime time = std::max(core->getPerformanceModel()->getElapsedTime(),
+                                       Sim()->getClockSkewMinimizationServer()->getGlobalTime());
          reschedule(time, free_core_id, false);
       }
    }
@@ -148,21 +139,18 @@ bool SchedulerPinnedBase::threadSetAffinity(thread_id_t calling_thread_id, threa
 
 bool SchedulerPinnedBase::threadGetAffinity(thread_id_t thread_id, size_t cpusetsize, cpu_set_t *mask)
 {
-   if (cpusetsize*8 < Sim()->getConfig()->getApplicationCores())
-   {
+   ScopedLock sl(m_lock);
+   if (cpusetsize * 8 < Sim()->getConfig()->getApplicationCores()) {
       // Not enough space to return result
       return false;
    }
 
    CPU_ZERO_S(cpusetsize, mask);
-   for(core_id_t core_id = 0; core_id < (core_id_t)Sim()->getConfig()->getApplicationCores(); ++core_id)
-   {
-      if (
-         m_thread_info[thread_id].hasAffinity(core_id)
-         // When application has not yet done any sched_setaffinity calls, lie and return a fully populated affinity bitset.
-         // This makes libiomp5 use all available cores.
-         || !m_thread_info[thread_id].hasExplicitAffinity()
-      )
+   for (core_id_t core_id = 0; core_id < (core_id_t)Sim()->getConfig()->getApplicationCores(); ++core_id) {
+      if (m_thread_info[thread_id].hasAffinity(core_id)
+          // When application has not yet done any sched_setaffinity calls, lie and return a fully populated affinity
+          // bitset. This makes libiomp5 use all available cores.
+          || !m_thread_info[thread_id].hasExplicitAffinity())
          CPU_SET_S(core_id, cpusetsize, mask);
    }
 
@@ -171,7 +159,9 @@ bool SchedulerPinnedBase::threadGetAffinity(thread_id_t thread_id, size_t cpuset
 
 void SchedulerPinnedBase::threadStart(thread_id_t thread_id, SubsecondTime time)
 {
-   // Thread transitioned out of INITIALIZING, if it did not get a core assigned by threadCreate but there is a free one now, schedule it there
+   ScopedLock sl(m_lock);
+   // Thread transitioned out of INITIALIZING, if it did not get a core assigned by threadCreate but there is a free one
+   // now, schedule it there
    core_id_t free_core_id = findFreeCoreForThread(thread_id);
    if (free_core_id != INVALID_THREAD_ID)
       reschedule(time, free_core_id, false);
@@ -179,6 +169,7 @@ void SchedulerPinnedBase::threadStart(thread_id_t thread_id, SubsecondTime time)
 
 void SchedulerPinnedBase::threadStall(thread_id_t thread_id, ThreadManager::stall_type_t reason, SubsecondTime time)
 {
+   ScopedLock sl(m_lock);
    // If the running thread becomes unrunnable, schedule someone else
    if (m_thread_info[thread_id].isRunning())
       reschedule(time, m_thread_info[thread_id].getCoreRunning(), false);
@@ -186,6 +177,7 @@ void SchedulerPinnedBase::threadStall(thread_id_t thread_id, ThreadManager::stal
 
 void SchedulerPinnedBase::threadResume(thread_id_t thread_id, thread_id_t thread_by, SubsecondTime time)
 {
+   ScopedLock sl(m_lock);
    // If our core is currently idle, schedule us now
    core_id_t free_core_id = findFreeCoreForThread(thread_id);
    if (free_core_id != INVALID_THREAD_ID)
@@ -194,6 +186,7 @@ void SchedulerPinnedBase::threadResume(thread_id_t thread_id, thread_id_t thread
 
 void SchedulerPinnedBase::threadExit(thread_id_t thread_id, SubsecondTime time)
 {
+   ScopedLock sl(m_lock);
    // If the running thread becomes unrunnable, schedule someone else
    if (m_thread_info[thread_id].isRunning())
       reschedule(time, m_thread_info[thread_id].getCoreRunning(), false);
@@ -201,16 +194,14 @@ void SchedulerPinnedBase::threadExit(thread_id_t thread_id, SubsecondTime time)
 
 void SchedulerPinnedBase::periodic(SubsecondTime time)
 {
+   ScopedLock sl(m_lock);
    SubsecondTime delta = time - m_last_periodic;
 
-   for(core_id_t core_id = 0; core_id < (core_id_t)Sim()->getConfig()->getApplicationCores(); ++core_id)
-   {
-      if (delta > m_quantum_left[core_id] || m_core_thread_running[core_id] == INVALID_THREAD_ID)
-      {
+   for (core_id_t core_id = 0; core_id < (core_id_t)Sim()->getConfig()->getApplicationCores(); ++core_id) {
+      if (delta > m_quantum_left[core_id] || m_core_thread_running[core_id] == INVALID_THREAD_ID) {
          reschedule(time, core_id, true);
       }
-      else
-      {
+      else {
          m_quantum_left[core_id] -= delta;
       }
    }
@@ -222,8 +213,8 @@ void SchedulerPinnedBase::reschedule(SubsecondTime time, core_id_t core_id, bool
 {
    thread_id_t current_thread_id = m_core_thread_running[core_id];
 
-   if (current_thread_id != INVALID_THREAD_ID
-       && Sim()->getThreadManager()->getThreadState(current_thread_id) == Core::INITIALIZING)
+   if (current_thread_id != INVALID_THREAD_ID &&
+       Sim()->getThreadManager()->getThreadState(current_thread_id) == Core::INITIALIZING)
    {
       // Thread on this core is starting up, don't reschedule it for now
       return;
@@ -232,13 +223,11 @@ void SchedulerPinnedBase::reschedule(SubsecondTime time, core_id_t core_id, bool
    thread_id_t new_thread_id = INVALID_THREAD_ID;
    SInt64 max_score = INT64_MIN;
 
-   for(thread_id_t thread_id = 0; thread_id < (thread_id_t)m_threads_runnable.size(); ++thread_id)
-   {
+   for (thread_id_t thread_id = 0; thread_id < (thread_id_t)m_threads_runnable.size(); ++thread_id) {
       if (m_thread_info[thread_id].hasAffinity(core_id) // Thread is allowed to run on this core
           && m_threads_runnable[thread_id] == true      // Thread is not stalled
           && (!m_thread_info[thread_id].isRunning()     // Thread is not already running somewhere else
-              || m_thread_info[thread_id].getCoreRunning() == core_id)
-      )
+              || m_thread_info[thread_id].getCoreRunning() == core_id))
       {
          SInt64 score;
          if (m_thread_info[thread_id].isRunning())
@@ -249,19 +238,16 @@ void SchedulerPinnedBase::reschedule(SubsecondTime time, core_id_t core_id, bool
             score = time.getPS() - SInt64(m_thread_info[thread_id].getLastScheduledOut().getPS());
 
          // Find thread that was scheduled the longest time ago
-         if (score > max_score)
-         {
+         if (score > max_score) {
             new_thread_id = thread_id;
             max_score = score;
          }
       }
    }
 
-   if (current_thread_id != new_thread_id)
-   {
+   if (current_thread_id != new_thread_id) {
       // If a thread was running on this core, and we'll schedule another one, unschedule the current one
-      if (current_thread_id != INVALID_THREAD_ID)
-      {
+      if (current_thread_id != INVALID_THREAD_ID) {
          m_thread_info[current_thread_id].setCoreRunning(INVALID_CORE_ID);
          // Update last scheduled out time, with a small extra penalty to make sure we don't
          // reconsider this thread in the same periodic() call but for a next core
@@ -269,13 +255,12 @@ void SchedulerPinnedBase::reschedule(SubsecondTime time, core_id_t core_id, bool
          moveThread(current_thread_id, INVALID_CORE_ID, time);
       }
 
-      // Set core as running this thread *before* we call moveThread(), otherwise the HOOK_THREAD_RESUME callback for this
-      // thread might see an empty core, causing a recursive loop of reschedulings
+      // Set core as running this thread *before* we call moveThread(), otherwise the HOOK_THREAD_RESUME callback for
+      // this thread might see an empty core, causing a recursive loop of reschedulings
       m_core_thread_running[core_id] = new_thread_id;
 
       // If we found a new thread to schedule, move it here
-      if (new_thread_id != INVALID_THREAD_ID)
-      {
+      if (new_thread_id != INVALID_THREAD_ID) {
          // If thread was running somewhere else: let that core know
          if (m_thread_info[new_thread_id].isRunning())
             m_core_thread_running[m_thread_info[new_thread_id].getCoreRunning()] = INVALID_THREAD_ID;
@@ -293,10 +278,8 @@ String SchedulerPinnedBase::ThreadInfo::getAffinityString() const
 {
    std::stringstream ss;
 
-   for(core_id_t core_id = 0; core_id < (core_id_t)Sim()->getConfig()->getApplicationCores(); ++core_id)
-   {
-      if (hasAffinity(core_id))
-      {
+   for (core_id_t core_id = 0; core_id < (core_id_t)Sim()->getConfig()->getApplicationCores(); ++core_id) {
+      if (hasAffinity(core_id)) {
          if (ss.str().size() > 0)
             ss << ",";
          ss << core_id;
@@ -307,50 +290,47 @@ String SchedulerPinnedBase::ThreadInfo::getAffinityString() const
 
 void SchedulerPinnedBase::printState()
 {
+   ScopedLock sl(m_lock);
    printf("thread state:");
-   for(thread_id_t thread_id = 0; thread_id < (thread_id_t)Sim()->getThreadManager()->getNumThreads(); ++thread_id)
-   {
+   for (thread_id_t thread_id = 0; thread_id < (thread_id_t)Sim()->getThreadManager()->getNumThreads(); ++thread_id) {
       char state;
-      switch(Sim()->getThreadManager()->getThreadState(thread_id))
-      {
-         case Core::INITIALIZING:
-            state = 'I';
-            break;
-         case Core::RUNNING:
-            state = 'R';
-            break;
-         case Core::STALLED:
-            state = 'S';
-            break;
-         case Core::SLEEPING:
-            state = 's';
-            break;
-         case Core::WAKING_UP:
-            state = 'W';
-            break;
-         case Core::IDLE:
-            state = 'I';
-            break;
-         case Core::BROKEN:
-            state = 'B';
-            break;
-         case Core::NUM_STATES:
-         default:
-            state = '?';
-            break;
+      switch (Sim()->getThreadManager()->getThreadState(thread_id)) {
+      case Core::INITIALIZING:
+         state = 'I';
+         break;
+      case Core::RUNNING:
+         state = 'R';
+         break;
+      case Core::STALLED:
+         state = 'S';
+         break;
+      case Core::SLEEPING:
+         state = 's';
+         break;
+      case Core::WAKING_UP:
+         state = 'W';
+         break;
+      case Core::IDLE:
+         state = 'I';
+         break;
+      case Core::BROKEN:
+         state = 'B';
+         break;
+      case Core::NUM_STATES:
+      default:
+         state = '?';
+         break;
       }
-      if (m_thread_info[thread_id].isRunning())
-      {
+      if (m_thread_info[thread_id].isRunning()) {
          printf(" %c@%d", state, m_thread_info[thread_id].getCoreRunning());
       }
-      else
-      {
-         printf(" %c%c%s", state, m_threads_runnable[thread_id] ? '+' : '_', m_thread_info[thread_id].getAffinityString().c_str());
+      else {
+         printf(" %c%c%s", state, m_threads_runnable[thread_id] ? '+' : '_',
+                m_thread_info[thread_id].getAffinityString().c_str());
       }
    }
    printf("  --  core state:");
-   for(core_id_t core_id = 0; core_id < (core_id_t)Sim()->getConfig()->getApplicationCores(); ++core_id)
-   {
+   for (core_id_t core_id = 0; core_id < (core_id_t)Sim()->getConfig()->getApplicationCores(); ++core_id) {
       if (m_core_thread_running[core_id] == INVALID_THREAD_ID)
          printf(" __");
       else

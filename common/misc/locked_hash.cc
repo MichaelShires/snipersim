@@ -1,10 +1,6 @@
 #include "locked_hash.h"
 
-LockedHash::LockedHash(UInt64 size)
-      :
-      _size(size),
-      _bins(new Bucket[size]),
-      _locks(new Lock[size])
+LockedHash::LockedHash(UInt64 size) : _size(size), _bins(new Bucket[size]), _locks(new Lock[size])
 {
 }
 
@@ -26,9 +22,8 @@ std::pair<bool, UInt64> LockedHash::find(UInt64 key)
 
    _locks[index].acquire();
 
-   std::unordered_map<UInt64,UInt64>::iterator iter = _bins[index].find(key);
-   if (iter != _bins[index].end())
-   {
+   std::unordered_map<UInt64, UInt64>::iterator iter = _bins[index].find(key);
+   if (iter != _bins[index].end()) {
       res.first = true;
       res.second = iter->second;
    }
@@ -42,10 +37,9 @@ void LockedHash::remove(UInt64 key)
    UInt64 index = key % _size;
    _locks[index].acquire();
 
-   std::unordered_map<UInt64,UInt64>::iterator iter = _bins[index].find(key);
-   if (iter != _bins[index].end())
-   {
-       _bins[index].erase(iter);
+   std::unordered_map<UInt64, UInt64>::iterator iter = _bins[index].find(key);
+   if (iter != _bins[index].end()) {
+      _bins[index].erase(iter);
    }
 
    _locks[index].release();
@@ -61,10 +55,9 @@ bool LockedHash::insert(UInt64 key, UInt64 value)
    return true;
 }
 
-
 #ifdef DEBUG_LOCKED_HASH
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
    LockedHash hash(100);
    UInt64 ids[4] = {1001, 1050, 1011, 1099};
@@ -76,7 +69,6 @@ int main(int argc, char* argv[])
       assert(hash.find(ids[i]).first == true);
    cerr << "Test 1 passed" << endl;
 
-
    cerr << "Test 2 should fail in assertion" << endl;
    ids[3] = ids[0] + 100;
 
@@ -87,6 +79,5 @@ int main(int argc, char* argv[])
 
    return 0;
 }
-
 
 #endif

@@ -8,13 +8,18 @@
 
 class QueueModel
 {
-public:
-   QueueModel() {}
-   virtual ~QueueModel() {}
+ public:
+   QueueModel()
+   {
+   }
+   virtual ~QueueModel()
+   {
+   }
 
-   virtual SubsecondTime computeQueueDelay(SubsecondTime pkt_time, SubsecondTime processing_time, core_id_t requester = INVALID_CORE_ID) = 0;
+   virtual SubsecondTime computeQueueDelay(SubsecondTime pkt_time, SubsecondTime processing_time,
+                                           core_id_t requester = INVALID_CORE_ID) = 0;
 
-   static QueueModel* create(String name, UInt32 id, String model_type, SubsecondTime min_processing_time);
+   static QueueModel *create(String name, UInt32 id, String model_type, SubsecondTime min_processing_time);
 };
 
 #endif /* __QUEUE_MODEL_H__ */

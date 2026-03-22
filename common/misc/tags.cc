@@ -1,7 +1,7 @@
 #include "tags.h"
 
-#include "simulator.h"
 #include "config.hpp"
+#include "simulator.h"
 
 #include <iostream>
 
@@ -20,19 +20,16 @@ TagsManager::TagsManager(config::Config *config)
    const config::Section &section = config->getSection("tags");
    const config::SectionList &objs = section.getSubsections();
 
-   for (config::SectionList::const_iterator obj = objs.begin() ; obj != objs.end() ; ++obj)
-   {
+   for (config::SectionList::const_iterator obj = objs.begin(); obj != objs.end(); ++obj) {
       String objname = (*obj).first;
 
       // Default configuration values are not supported, only array lists
       const config::KeyArrayList &tags_keys = (*obj).second->getArrayKeys();
-      for (config::KeyArrayList::const_iterator tag_keys = tags_keys.begin() ; tag_keys != tags_keys.end() ; ++tag_keys)
-      {
+      for (config::KeyArrayList::const_iterator tag_keys = tags_keys.begin(); tag_keys != tags_keys.end(); ++tag_keys) {
          const String &tag = (*tag_keys).first;
-         const std::vector<config::Key*> ids = (*tag_keys).second;
+         const std::vector<config::Key *> ids = (*tag_keys).second;
 
-         for (unsigned int id = 0 ; id < ids.size() ; id++)
-         {
+         for (unsigned int id = 0; id < ids.size(); id++) {
             bool valid = ids[id]->getBool();
 
             if (valid)

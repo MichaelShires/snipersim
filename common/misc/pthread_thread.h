@@ -6,12 +6,12 @@
 
 class PthreadThread : public _Thread
 {
-public:
+ public:
    PthreadThread(ThreadFunc func, void *param);
    ~PthreadThread();
    void run();
 
-private:
+ private:
    static void *spawnedThreadFunc(void *);
 
    struct FuncData
@@ -19,10 +19,9 @@ private:
       ThreadFunc func;
       void *arg;
 
-      FuncData(ThreadFunc f, void *a)
-         : func(f)
-         , arg(a)
-      { }
+      FuncData(ThreadFunc f, void *a) : func(f), arg(a)
+      {
+      }
    };
 
    FuncData m_data;

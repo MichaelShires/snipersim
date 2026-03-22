@@ -1,30 +1,32 @@
 #include "micro_op.h"
 #include "instruction.h"
 
-//extern "C" {
-//#include <xed-decoded-inst.h>
-//}
+// extern "C" {
+// #include <xed-decoded-inst.h>
+// }
 
 #include <assert.h>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
-#include <iomanip>
 
 // Enabling verification can help if there is memory corruption that is overwriting the MicroOp
 // datastructure and you would like to detect when it is happening
-//#define ENABLE_VERIFICATION
+// #define ENABLE_VERIFICATION
 
 #ifdef ENABLE_VERIFICATION
-# define VERIFY_MICROOP() verify()
+#define VERIFY_MICROOP() verify()
 #else
-# define VERIFY_MICROOP() do {} while (0)
+#define VERIFY_MICROOP()                                                                                               \
+   do {                                                                                                                \
+   } while (0)
 #endif
 
 MicroOp::MicroOp()
 #ifdef ENABLE_MICROOP_STRINGS
-   : sourceRegisterNames(MAXIMUM_NUMBER_OF_SOURCE_REGISTERS)
-   , addressRegisterNames(MAXIMUM_NUMBER_OF_ADDRESS_REGISTERS)
-   , destinationRegisterNames(MAXIMUM_NUMBER_OF_DESTINATION_REGISTERS)
+    : sourceRegisterNames(MAXIMUM_NUMBER_OF_SOURCE_REGISTERS),
+      addressRegisterNames(MAXIMUM_NUMBER_OF_ADDRESS_REGISTERS),
+      destinationRegisterNames(MAXIMUM_NUMBER_OF_DESTINATION_REGISTERS)
 #endif
 {
    this->uop_type = UOP_INVALID;
@@ -50,11 +52,11 @@ MicroOp::MicroOp()
    this->is_x87 = false;
    this->operand_size = 0;
 
-   for(uint32_t i = 0 ; i < MAXIMUM_NUMBER_OF_SOURCE_REGISTERS; i++)
+   for (uint32_t i = 0; i < MAXIMUM_NUMBER_OF_SOURCE_REGISTERS; i++)
       this->sourceRegisters[i] = dl::Decoder::DL_OPCODE_INVALID;
-   for(uint32_t i = 0 ; i < MAXIMUM_NUMBER_OF_ADDRESS_REGISTERS; i++)
+   for (uint32_t i = 0; i < MAXIMUM_NUMBER_OF_ADDRESS_REGISTERS; i++)
       this->addressRegisters[i] = dl::Decoder::DL_OPCODE_INVALID;
-   for(uint32_t i = 0 ; i < MAXIMUM_NUMBER_OF_DESTINATION_REGISTERS; i++)
+   for (uint32_t i = 0; i < MAXIMUM_NUMBER_OF_DESTINATION_REGISTERS; i++)
       this->destinationRegisters[i] = dl::Decoder::DL_OPCODE_INVALID;
 
 #ifdef ENABLE_MICROOP_STRINGS
@@ -71,8 +73,10 @@ MicroOp::MicroOp()
 #endif
 }
 
-void MicroOp::makeLoad(uint32_t offset, dl::Decoder::decoder_opcode instructionOpcode, const String& instructionOpcodeName, uint16_t mem_size) {
-   this->uop_type = UOP_LOAD;               
+void MicroOp::makeLoad(uint32_t offset, dl::Decoder::decoder_opcode instructionOpcode,
+                       const String &instructionOpcodeName, uint16_t mem_size)
+{
+   this->uop_type = UOP_LOAD;
    this->microOpTypeOffset = offset;
    this->memoryAccessSize = mem_size;
 #ifdef ENABLE_MICROOP_STRINGS
@@ -83,7 +87,9 @@ void MicroOp::makeLoad(uint32_t offset, dl::Decoder::decoder_opcode instructionO
    this->setTypes();
 }
 
-void MicroOp::makeExecute(uint32_t offset, uint32_t num_loads, dl::Decoder::decoder_opcode instructionOpcode, const String& instructionOpcodeName, bool isBranch) {
+void MicroOp::makeExecute(uint32_t offset, uint32_t num_loads, dl::Decoder::decoder_opcode instructionOpcode,
+                          const String &instructionOpcodeName, bool isBranch)
+{
    this->uop_type = UOP_EXECUTE;
    this->microOpTypeOffset = offset;
    this->intraInstructionDependencies = num_loads;
@@ -95,7 +101,9 @@ void MicroOp::makeExecute(uint32_t offset, uint32_t num_loads, dl::Decoder::deco
    this->setTypes();
 }
 
-void MicroOp::makeStore(uint32_t offset, uint32_t num_execute, dl::Decoder::decoder_opcode instructionOpcode, const String& instructionOpcodeName, uint16_t mem_size) {
+void MicroOp::makeStore(uint32_t offset, uint32_t num_execute, dl::Decoder::decoder_opcode instructionOpcode,
+                        const String &instructionOpcodeName, uint16_t mem_size)
+{
    this->uop_type = UOP_STORE;
    this->microOpTypeOffset = offset;
    this->memoryAccessSize = mem_size;
@@ -107,7 +115,8 @@ void MicroOp::makeStore(uint32_t offset, uint32_t num_execute, dl::Decoder::deco
    this->setTypes();
 }
 
-void MicroOp::makeDynamic(const String& instructionOpcodeName, uint32_t execLatency) {
+void MicroOp::makeDynamic(const String &instructionOpcodeName, uint32_t execLatency)
+{
    this->uop_type = UOP_EXECUTE;
    this->microOpTypeOffset = 0;
    this->intraInstructionDependencies = 0;
@@ -119,29 +128,27 @@ void MicroOp::makeDynamic(const String& instructionOpcodeName, uint32_t execLate
    this->setTypes();
 }
 
-
-MicroOp::uop_subtype_t MicroOp::getSubtype_Exec(const MicroOp& uop)
-{   
+MicroOp::uop_subtype_t MicroOp::getSubtype_Exec(const MicroOp &uop)
+{
    dl::Decoder *dec = Sim()->getDecoder();
 
    // Get the uop subtype for the EXEC part of this instruction
    // (ignoring the fact that this particular microop may be a load/store,
    //  used in determining the data type for load/store when calculating bypass delays)
    if (dec->is_branch_opcode(uop.getInstructionOpcode()))
-        return UOP_SUBTYPE_BRANCH;
+      return UOP_SUBTYPE_BRANCH;
 
    else if (dec->is_fpvector_addsub_opcode(uop.getInstructionOpcode(), uop.getDecodedInstruction()))
-       return UOP_SUBTYPE_FP_ADDSUB;
+      return UOP_SUBTYPE_FP_ADDSUB;
 
    else if (dec->is_fpvector_muldiv_opcode(uop.getInstructionOpcode(), uop.getDecodedInstruction()))
-       return UOP_SUBTYPE_FP_MULDIV;
+      return UOP_SUBTYPE_FP_MULDIV;
 
    else
-       return UOP_SUBTYPE_GENERIC;
+      return UOP_SUBTYPE_GENERIC;
 }
 
-
-MicroOp::uop_subtype_t MicroOp::getSubtype(const MicroOp& uop)
+MicroOp::uop_subtype_t MicroOp::getSubtype(const MicroOp &uop)
 {
    // Count all of the ADD/SUB/DIV/LD/ST/BR, and if we have too many, break
    // Count all of the GENERIC insns, and if we have too many (3x-per-cycle), break
@@ -159,39 +166,35 @@ MicroOp::uop_subtype_t MicroOp::getSubtype(const MicroOp& uop)
 
 String MicroOp::getSubtypeString(uop_subtype_t uop_subtype)
 {
-   switch(uop_subtype) {
-      case UOP_SUBTYPE_FP_ADDSUB:
-         return "fp_addsub";
-      case UOP_SUBTYPE_FP_MULDIV:
-         return "fp_muldiv";
-      case UOP_SUBTYPE_LOAD:
-         return "load";
-      case UOP_SUBTYPE_STORE:
-         return "store";
-      case UOP_SUBTYPE_GENERIC:
-         return "generic";
-      case UOP_SUBTYPE_BRANCH:
-         return "branch";
-      default:
-         LOG_ASSERT_ERROR(false, "Unknown UopType %u", uop_subtype);
-         return "unknown";
+   switch (uop_subtype) {
+   case UOP_SUBTYPE_FP_ADDSUB:
+      return "fp_addsub";
+   case UOP_SUBTYPE_FP_MULDIV:
+      return "fp_muldiv";
+   case UOP_SUBTYPE_LOAD:
+      return "load";
+   case UOP_SUBTYPE_STORE:
+      return "store";
+   case UOP_SUBTYPE_GENERIC:
+      return "generic";
+   case UOP_SUBTYPE_BRANCH:
+      return "branch";
+   default:
+      LOG_ASSERT_ERROR(false, "Unknown UopType %u", uop_subtype);
+      return "unknown";
    }
 }
 
 bool MicroOp::isFpLoadStore() const
 {
-   if (isLoad() || isStore())
-   {
-      switch(getSubtype_Exec(*this))
-      {
-         case UOP_SUBTYPE_FP_ADDSUB:
-         case UOP_SUBTYPE_FP_MULDIV:
-            return true;
-         default:
-            ; // fall through
+   if (isLoad() || isStore()) {
+      switch (getSubtype_Exec(*this)) {
+      case UOP_SUBTYPE_FP_ADDSUB:
+      case UOP_SUBTYPE_FP_MULDIV:
+         return true;
+      default:; // fall through
       }
-      if(Sim()->getDecoder()->is_fpvector_ldst_opcode(getInstructionOpcode(), getDecodedInstruction()))
-      {
+      if (Sim()->getDecoder()->is_fpvector_ldst_opcode(getInstructionOpcode(), getDecodedInstruction())) {
          return true;
       }
    }
@@ -199,40 +202,49 @@ bool MicroOp::isFpLoadStore() const
    return false;
 }
 
-
-void MicroOp::verify() const {
-   LOG_ASSERT_ERROR(uop_subtype == MicroOp::getSubtype(*this), "uop_subtype %u != %u", uop_subtype, MicroOp::getSubtype(*this));
-   LOG_ASSERT_ERROR(sourceRegistersLength < MAXIMUM_NUMBER_OF_SOURCE_REGISTERS, "sourceRegistersLength(%d) > MAX(%u)", sourceRegistersLength, MAXIMUM_NUMBER_OF_SOURCE_REGISTERS);
-   LOG_ASSERT_ERROR(destinationRegistersLength < MAXIMUM_NUMBER_OF_DESTINATION_REGISTERS, "destinationRegistersLength(%u) > MAX(%u)", destinationRegistersLength, MAXIMUM_NUMBER_OF_DESTINATION_REGISTERS);
-   for (uint32_t i = 0 ; i < sourceRegistersLength ; i++)
-     LOG_ASSERT_ERROR(sourceRegisters[i] < Sim()->getDecoder()->last_reg(), "sourceRegisters[%u] >= DEC_REG_LAST", i);
-   for (uint32_t i = 0 ; i < destinationRegistersLength ; i++)
-     LOG_ASSERT_ERROR(destinationRegisters[i] < Sim()->getDecoder()->last_reg(), "destinationRegisters[%u] >= DEC_REG_LAST", i);
+void MicroOp::verify() const
+{
+   LOG_ASSERT_ERROR(uop_subtype == MicroOp::getSubtype(*this), "uop_subtype %u != %u", uop_subtype,
+                    MicroOp::getSubtype(*this));
+   LOG_ASSERT_ERROR(sourceRegistersLength < MAXIMUM_NUMBER_OF_SOURCE_REGISTERS, "sourceRegistersLength(%d) > MAX(%u)",
+                    sourceRegistersLength, MAXIMUM_NUMBER_OF_SOURCE_REGISTERS);
+   LOG_ASSERT_ERROR(destinationRegistersLength < MAXIMUM_NUMBER_OF_DESTINATION_REGISTERS,
+                    "destinationRegistersLength(%u) > MAX(%u)", destinationRegistersLength,
+                    MAXIMUM_NUMBER_OF_DESTINATION_REGISTERS);
+   for (uint32_t i = 0; i < sourceRegistersLength; i++)
+      LOG_ASSERT_ERROR(sourceRegisters[i] < Sim()->getDecoder()->last_reg(), "sourceRegisters[%u] >= DEC_REG_LAST", i);
+   for (uint32_t i = 0; i < destinationRegistersLength; i++)
+      LOG_ASSERT_ERROR(destinationRegisters[i] < Sim()->getDecoder()->last_reg(),
+                       "destinationRegisters[%u] >= DEC_REG_LAST", i);
 }
 
-uint32_t MicroOp::getSourceRegistersLength() const {
+uint32_t MicroOp::getSourceRegistersLength() const
+{
    VERIFY_MICROOP();
    return this->sourceRegistersLength;
 }
 
-dl::Decoder::decoder_reg MicroOp::getSourceRegister(uint32_t index) const {
+dl::Decoder::decoder_reg MicroOp::getSourceRegister(uint32_t index) const
+{
    VERIFY_MICROOP();
    assert(index < this->sourceRegistersLength);
    return this->sourceRegisters[index];
 }
 
 #ifdef ENABLE_MICROOP_STRINGS
-const String& MicroOp::getSourceRegisterName(uint32_t index) const {
+const String &MicroOp::getSourceRegisterName(uint32_t index) const
+{
    VERIFY_MICROOP();
    assert(index < this->sourceRegistersLength);
    return this->sourceRegisterNames[index];
 }
 #endif
 
-void MicroOp::addSourceRegister(dl::Decoder::decoder_reg registerId, const String& registerName) {
+void MicroOp::addSourceRegister(dl::Decoder::decoder_reg registerId, const String &registerName)
+{
    VERIFY_MICROOP();
    assert(sourceRegistersLength < MAXIMUM_NUMBER_OF_SOURCE_REGISTERS);
-// assert(registerId >= 0 && registerId < TOTAL_NUM_REGISTERS);
+   // assert(registerId >= 0 && registerId < TOTAL_NUM_REGISTERS);
    sourceRegisters[sourceRegistersLength] = registerId;
 #ifdef ENABLE_MICROOP_STRINGS
    sourceRegisterNames[sourceRegistersLength] = registerName;
@@ -240,29 +252,33 @@ void MicroOp::addSourceRegister(dl::Decoder::decoder_reg registerId, const Strin
    sourceRegistersLength++;
 }
 
-uint32_t MicroOp::getAddressRegistersLength() const {
+uint32_t MicroOp::getAddressRegistersLength() const
+{
    VERIFY_MICROOP();
    return this->addressRegistersLength;
 }
 
-dl::Decoder::decoder_reg MicroOp::getAddressRegister(uint32_t index) const {
+dl::Decoder::decoder_reg MicroOp::getAddressRegister(uint32_t index) const
+{
    VERIFY_MICROOP();
    assert(index < this->addressRegistersLength);
    return this->addressRegisters[index];
 }
 
 #ifdef ENABLE_MICROOP_STRINGS
-const String& MicroOp::getAddressRegisterName(uint32_t index) const {
+const String &MicroOp::getAddressRegisterName(uint32_t index) const
+{
    VERIFY_MICROOP();
    assert(index < this->addressRegistersLength);
    return this->addressRegisterNames[index];
 }
 #endif
 
-void MicroOp::addAddressRegister(dl::Decoder::decoder_reg registerId, const String& registerName) {
+void MicroOp::addAddressRegister(dl::Decoder::decoder_reg registerId, const String &registerName)
+{
    VERIFY_MICROOP();
    assert(addressRegistersLength < MAXIMUM_NUMBER_OF_ADDRESS_REGISTERS);
-// assert(registerId >= 0 && registerId < TOTAL_NUM_REGISTERS);
+   // assert(registerId >= 0 && registerId < TOTAL_NUM_REGISTERS);
    addressRegisters[addressRegistersLength] = registerId;
 #ifdef ENABLE_MICROOP_STRINGS
    addressRegisterNames[addressRegistersLength] = registerName;
@@ -270,29 +286,33 @@ void MicroOp::addAddressRegister(dl::Decoder::decoder_reg registerId, const Stri
    addressRegistersLength++;
 }
 
-uint32_t MicroOp::getDestinationRegistersLength() const {
+uint32_t MicroOp::getDestinationRegistersLength() const
+{
    VERIFY_MICROOP();
    return this->destinationRegistersLength;
 }
 
-dl::Decoder::decoder_reg MicroOp::getDestinationRegister(uint32_t index) const {
+dl::Decoder::decoder_reg MicroOp::getDestinationRegister(uint32_t index) const
+{
    VERIFY_MICROOP();
    assert(index < this->destinationRegistersLength);
    return this->destinationRegisters[index];
 }
 
 #ifdef ENABLE_MICROOP_STRINGS
-const String& MicroOp::getDestinationRegisterName(uint32_t index) const {
+const String &MicroOp::getDestinationRegisterName(uint32_t index) const
+{
    VERIFY_MICROOP();
    assert(index < this->destinationRegistersLength);
    return this->destinationRegisterNames[index];
 }
 #endif
 
-void MicroOp::addDestinationRegister(dl::Decoder::decoder_reg registerId, const String& registerName) {
+void MicroOp::addDestinationRegister(dl::Decoder::decoder_reg registerId, const String &registerName)
+{
    VERIFY_MICROOP();
    assert(destinationRegistersLength < MAXIMUM_NUMBER_OF_DESTINATION_REGISTERS);
-// assert(registerId >= 0 && registerId < TOTAL_NUM_REGISTERS);
+   // assert(registerId >= 0 && registerId < TOTAL_NUM_REGISTERS);
    destinationRegisters[destinationRegistersLength] = registerId;
 #ifdef ENABLE_MICROOP_STRINGS
    destinationRegisterNames[destinationRegistersLength] = registerName;
@@ -300,7 +320,8 @@ void MicroOp::addDestinationRegister(dl::Decoder::decoder_reg registerId, const 
    destinationRegistersLength++;
 }
 
-String MicroOp::toString() const {
+String MicroOp::toString() const
+{
    std::ostringstream out;
    out << "===============================" << std::endl;
    if (this->isFirst())
@@ -309,22 +330,22 @@ String MicroOp::toString() const {
       out << "LAST ";
    if (this->uop_type == UOP_LOAD)
       out << " LOAD: " << " ("
-         #ifdef ENABLE_MICROOP_STRINGS
-         << instructionOpcodeName
-         #endif
-         << ":0x" << std::hex << instructionOpcode << std::dec << ")" << std::endl;
+#ifdef ENABLE_MICROOP_STRINGS
+          << instructionOpcodeName
+#endif
+          << ":0x" << std::hex << instructionOpcode << std::dec << ")" << std::endl;
    else if (this->uop_type == UOP_STORE)
       out << " STORE: " << " ("
-         #ifdef ENABLE_MICROOP_STRINGS
-         << instructionOpcodeName
-         #endif
-         << ":0x" << std::hex << instructionOpcode << std::dec << ")" << std::endl;
+#ifdef ENABLE_MICROOP_STRINGS
+          << instructionOpcodeName
+#endif
+          << ":0x" << std::hex << instructionOpcode << std::dec << ")" << std::endl;
    else if (this->uop_type == UOP_EXECUTE)
       out << " EXEC ("
-         #ifdef ENABLE_MICROOP_STRINGS
-         << instructionOpcodeName
-         #endif
-         << ":0x" << std::hex << instructionOpcode << std::dec << ")" << std::endl;
+#ifdef ENABLE_MICROOP_STRINGS
+          << instructionOpcodeName
+#endif
+          << ":0x" << std::hex << instructionOpcode << std::dec << ")" << std::endl;
    else
       out << " INVALID";
 
@@ -340,10 +361,10 @@ String MicroOp::toString() const {
 
 #ifdef ENABLE_MICROOP_STRINGS
    out << "SREGS: ";
-   for(uint32_t i = 0; i < getSourceRegistersLength(); i++)
+   for (uint32_t i = 0; i < getSourceRegistersLength(); i++)
       out << getSourceRegisterName(i) << " ";
    out << "DREGS: ";
-   for(uint32_t i = 0; i < getDestinationRegistersLength(); i++)
+   for (uint32_t i = 0; i < getDestinationRegistersLength(); i++)
       out << getDestinationRegisterName(i) << " ";
    out << std::endl;
 #endif
@@ -371,10 +392,10 @@ String MicroOp::toShortString(bool withDisassembly) const
    else
       out << " INVALID";
    out << " ("
-         #ifdef ENABLE_MICROOP_STRINGS
-         << std::left << std::setw(8) << instructionOpcodeName
-         #endif
-         << ":0x" << std::hex << std::setw(4) << instructionOpcode << std::dec << ")";
+#ifdef ENABLE_MICROOP_STRINGS
+       << std::left << std::setw(8) << instructionOpcodeName
+#endif
+       << ":0x" << std::hex << std::setw(4) << instructionOpcode << std::dec << ")";
 
    if (withDisassembly)
       out << "  --  " << (this->getInstruction() ? this->getInstruction()->getDisassembly() : "(dynamic)");

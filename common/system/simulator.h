@@ -2,8 +2,9 @@
 #define SIMULATOR_H
 
 #include "config.h"
-#include "log.h"
 #include "inst_mode.h"
+#include "log.h"
+#include "simulation_context.h"
 
 #include <decoder.h>
 
@@ -29,61 +30,143 @@ class FaultinjectionManager;
 class TagsManager;
 class RoutineTracer;
 class MemoryTracker;
-namespace config { class Config; }
+namespace config
+{
+class Config;
+}
 
 class Simulator
 {
-public:
+ public:
    Simulator();
    ~Simulator();
 
    void start();
+   void stop();
 
-   static Simulator* getSingleton() { return m_singleton; }
-   static void setConfig(config::Config * cfg, Config::SimulationMode mode);
+   static Simulator *getSingleton()
+   {
+      return m_singleton;
+   }
+   static void setConfig(config::Config *cfg, Config::SimulationMode mode);
    static void allocate();
    static void release();
 
-   SyscallServer* getSyscallServer() { return m_syscall_server; }
-   SyncServer* getSyncServer() { return m_sync_server; }
-   MagicServer* getMagicServer() { return m_magic_server; }
-   ClockSkewMinimizationServer* getClockSkewMinimizationServer() { return m_clock_skew_minimization_server; }
-   CoreManager *getCoreManager() { return m_core_manager; }
-   SimThreadManager *getSimThreadManager() { return m_sim_thread_manager; }
-   ThreadManager *getThreadManager() { return m_thread_manager; }
-   ClockSkewMinimizationManager *getClockSkewMinimizationManager() { return m_clock_skew_minimization_manager; }
-   FastForwardPerformanceManager *getFastForwardPerformanceManager() { return m_fastforward_performance_manager; }
-   Config *getConfig() { return &m_config; }
-   config::Config *getCfg() {
-      //if (! m_config_file_allowed)
-      //   LOG_PRINT_ERROR("getCfg() called after init, this is not nice\n");
+   SimulationContext* getContext() { return &m_context; }
+
+   SyscallServer *getSyscallServer()
+   {
+      return m_syscall_server;
+   }
+   SyncServer *getSyncServer()
+   {
+      return m_sync_server;
+   }
+   MagicServer *getMagicServer()
+   {
+      return m_magic_server;
+   }
+   ClockSkewMinimizationServer *getClockSkewMinimizationServer()
+   {
+      return m_clock_skew_minimization_server;
+   }
+   CoreManager *getCoreManager()
+   {
+      return m_core_manager;
+   }
+   SimThreadManager *getSimThreadManager()
+   {
+      return m_sim_thread_manager;
+   }
+   ThreadManager *getThreadManager()
+   {
+      return m_thread_manager;
+   }
+   ClockSkewMinimizationManager *getClockSkewMinimizationManager()
+   {
+      return m_clock_skew_minimization_manager;
+   }
+   FastForwardPerformanceManager *getFastForwardPerformanceManager()
+   {
+      return m_fastforward_performance_manager;
+   }
+   Config *getConfig()
+   {
+      return &m_config;
+   }
+   config::Config *getCfg()
+   {
       return m_config_file;
    }
-   void hideCfg() { m_config_file_allowed = false; }
-   StatsManager *getStatsManager() { return m_stats_manager; }
-   ThreadStatsManager *getThreadStatsManager() { return m_thread_stats_manager; }
-   DvfsManager *getDvfsManager() { return m_dvfs_manager; }
-   HooksManager *getHooksManager() { return m_hooks_manager; }
-   SamplingManager *getSamplingManager() { return m_sampling_manager; }
-   FaultinjectionManager *getFaultinjectionManager() { return m_faultinjection_manager; }
-   TraceManager *getTraceManager() { return m_trace_manager; }
-   TagsManager *getTagsManager() { return m_tags_manager; }
-   RoutineTracer *getRoutineTracer() { return m_rtn_tracer; }
-   MemoryTracker *getMemoryTracker() { return m_memory_tracker; }
-   void setMemoryTracker(MemoryTracker *memory_tracker) { m_memory_tracker = memory_tracker; }
+   void hideCfg()
+   {
+      m_config_file_allowed = false;
+   }
+   StatsManager *getStatsManager()
+   {
+      return m_stats_manager;
+   }
+   ThreadStatsManager *getThreadStatsManager()
+   {
+      return m_thread_stats_manager;
+   }
+   DvfsManager *getDvfsManager()
+   {
+      return m_dvfs_manager;
+   }
+   HooksManager *getHooksManager()
+   {
+      return m_hooks_manager;
+   }
+   SamplingManager *getSamplingManager()
+   {
+      return m_sampling_manager;
+   }
+   FaultinjectionManager *getFaultinjectionManager()
+   {
+      return m_faultinjection_manager;
+   }
+   TraceManager *getTraceManager()
+   {
+      return m_trace_manager;
+   }
+   TagsManager *getTagsManager()
+   {
+      return m_tags_manager;
+   }
+   RoutineTracer *getRoutineTracer()
+   {
+      return m_rtn_tracer;
+   }
+   MemoryTracker *getMemoryTracker()
+   {
+      return m_memory_tracker;
+   }
+   void setMemoryTracker(MemoryTracker *memory_tracker)
+   {
+      m_memory_tracker = memory_tracker;
+      m_context.setMemoryTracker(memory_tracker);
+   }
 
-   bool isRunning() { return m_running; }
+   bool isRunning()
+   {
+      return m_running;
+   }
    static void enablePerformanceModels();
    static void disablePerformanceModels();
 
    void setInstrumentationMode(InstMode::inst_mode_t new_mode, bool update_barrier);
-   InstMode::inst_mode_t getInstrumentationMode() { return InstMode::inst_mode; }
+   InstMode::inst_mode_t getInstrumentationMode()
+   {
+      return InstMode::getInstrumentationMode();
+   }
 
    // Access to the Decoder library for the simulator run
    void createDecoder();
    dl::Decoder *getDecoder();
-   
-private:
+
+ private:
+   SimulationContext m_context;
    Config m_config;
    Log m_log;
    TagsManager *m_tags_manager;
@@ -115,7 +198,7 @@ private:
    static config::Config *m_config_file;
    static bool m_config_file_allowed;
    static Config::SimulationMode m_mode;
-   
+
    // Object to access the decoder library with the correct configuration
    static dl::Decoder *m_decoder;
    // Surrogate to create a Decoder object for a specific architecture

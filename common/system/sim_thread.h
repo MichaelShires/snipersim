@@ -7,13 +7,13 @@
 
 class SimThread : public Runnable
 {
-public:
+ public:
    SimThread();
    ~SimThread();
 
    void spawn();
 
-private:
+ private:
    void run();
 
    static void terminateFunc(void *vp, NetPacket pkt);

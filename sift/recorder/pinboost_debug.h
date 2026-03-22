@@ -7,7 +7,7 @@
 
 extern bool pinboost_do_debug;
 
-void pinboost_register(const char* name, bool do_screen_debug);
+void pinboost_register(const char *name, bool do_screen_debug);
 
 bool pinboost_backtrace(EXCEPTION_INFO *pExceptInfo, PHYSICAL_CONTEXT *pPhysCtxt);
 void pinboost_debugme(THREADID threadid);

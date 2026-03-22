@@ -8,23 +8,24 @@
 
 class RobSmtPerformanceModel : public MicroOpPerformanceModel
 {
-public:
+ public:
    RobSmtPerformanceModel(Core *core);
    ~RobSmtPerformanceModel();
 
-protected:
-   virtual boost::tuple<uint64_t,uint64_t> simulate(const std::vector<DynamicMicroOp*>& insts);
+ protected:
+   virtual boost::tuple<uint64_t, uint64_t> simulate(const std::vector<DynamicMicroOp *> &insts);
    virtual void notifyElapsedTimeUpdate();
    virtual void enableDetailedModel();
    virtual void disableDetailedModel();
    virtual void synchronize();
-private:
+
+ private:
    RobSmtTimer *m_rob_timer;
    UInt8 m_thread_id;
    bool m_enabled;
 
-   static std::unordered_map<core_id_t, RobSmtTimer*> s_rob_timers;
-   static RobSmtTimer* getRobTimer(Core *core, RobSmtPerformanceModel *perf, const CoreModel *core_model);
+   static std::unordered_map<core_id_t, RobSmtTimer *> s_rob_timers;
+   static RobSmtTimer *getRobTimer(Core *core, RobSmtPerformanceModel *perf, const CoreModel *core_model);
 };
 
 #endif

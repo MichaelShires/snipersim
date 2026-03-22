@@ -1,8 +1,9 @@
 #include "a53branchpredictor.h"
-#include "simulator.h"
 #include "config.hpp"
+#include "simulator.h"
 
-inline A53BranchPredictor::State nextState(A53BranchPredictor::State currentState, bool input) {
+inline A53BranchPredictor::State nextState(A53BranchPredictor::State currentState, bool input)
+{
    switch (currentState) {
    case A53BranchPredictor::StronglyNotTaken:
       return input ? A53BranchPredictor::WeakelyTaken : A53BranchPredictor::StronglyNotTaken;
@@ -16,7 +17,8 @@ inline A53BranchPredictor::State nextState(A53BranchPredictor::State currentStat
    return A53BranchPredictor::StronglyNotTaken;
 }
 
-inline bool statePrediction(A53BranchPredictor::State state) {
+inline bool statePrediction(A53BranchPredictor::State state)
+{
    switch (state) {
    case A53BranchPredictor::StronglyNotTaken:
    case A53BranchPredictor::WeakelyNotTaken:
@@ -27,15 +29,17 @@ inline bool statePrediction(A53BranchPredictor::State state) {
 }
 
 A53BranchPredictor::A53BranchPredictor(String name, core_id_t core_id)
-   : BranchPredictor(name, core_id)
-   , m_num_registers(Sim()->getCfg()->getIntArray("perf_model/branch_predictor/num_history_registers", core_id))
-   , size(Sim()->getCfg()->getIntArray("perf_model/branch_predictor/size", core_id))
-   , m_pattern_history_table(std::vector<A53BranchPredictor::State>(m_num_registers*size, A53BranchPredictor::StronglyNotTaken))
-   , m_branch_history_register(std::vector<int>(m_num_registers, 0))
+    : BranchPredictor(name, core_id),
+      m_num_registers(Sim()->getCfg()->getIntArray("perf_model/branch_predictor/num_history_registers", core_id)),
+      size(Sim()->getCfg()->getIntArray("perf_model/branch_predictor/size", core_id)),
+      m_pattern_history_table(
+          std::vector<A53BranchPredictor::State>(m_num_registers * size, A53BranchPredictor::StronglyNotTaken)),
+      m_branch_history_register(std::vector<int>(m_num_registers, 0))
 {
 }
 
-void A53BranchPredictor::update(bool predicted, bool actual, bool indirect, IntPtr ip, IntPtr target) {
+void A53BranchPredictor::update(bool predicted, bool actual, bool indirect, IntPtr ip, IntPtr target)
+{
    updateCounters(predicted, actual);
 
    if (indirect) {
@@ -43,23 +47,29 @@ void A53BranchPredictor::update(bool predicted, bool actual, bool indirect, IntP
       return;
    }
 
-   char registerIndex = ip%m_num_registers;
+   char registerIndex = ip % m_num_registers;
    int registerValue = m_branch_history_register[registerIndex] & (size - 1);
-   int historyIndex = registerValue + registerIndex*size;
+   int historyIndex = registerValue + registerIndex * size;
 
    m_pattern_history_table[historyIndex] = nextState(m_pattern_history_table[historyIndex], actual);
    m_branch_history_register[registerIndex] = (registerValue << 1) | actual;
 }
 
-bool A53BranchPredictor::predict(bool indirect, IntPtr ip, IntPtr target) {
+bool A53BranchPredictor::predict(bool indirect, IntPtr ip, IntPtr target)
+{
 
    if (indirect) {
       return ibtb.predict(indirect, ip, target);
    }
 
-   char registerIndex = ip%m_num_registers;
+   char registerIndex = ip % m_num_registers;
    int registerValue = m_branch_history_register[registerIndex] & (size - 1);
-   int historyIndex = registerValue + registerIndex*size;
+   int historyIndex = registerValue + registerIndex * size;
 
    return statePrediction(m_pattern_history_table[historyIndex]);
 }
+
+static ComponentRegistrar<BranchPredictor, String, core_id_t> 
+   a53_registrar("a53", [](String name, core_id_t core_id) -> BranchPredictor* {
+      return new A53BranchPredictor(name, core_id);
+   });

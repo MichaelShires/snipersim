@@ -13,7 +13,7 @@ class A53Prefetcher : public Prefetcher
    IntPtr prevAddress;
    unsigned int currentPatternLength, currentConsecutivePatternLength;
 
-public:
+ public:
    A53Prefetcher(String configName, core_id_t core_id);
    std::vector<IntPtr> getNextAddress(IntPtr currentAddress, core_id_t core_id) override;
 };

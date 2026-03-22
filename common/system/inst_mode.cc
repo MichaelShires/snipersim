@@ -1,27 +1,22 @@
-#include "log.h"
 #include "inst_mode.h"
+#include "log.h"
 
-const char * inst_mode_names[] = {
-   "INVALID", "DETAILED", "CACHE_ONLY", "FAST_FORWARD"
-};
+const char *InstMode::inst_mode_names[] = {"INVALID", "DETAILED", "CACHE_ONLY", "FAST_FORWARD"};
 
 // Instrumentation modes
 InstMode::inst_mode_t InstMode::inst_mode_init = InstMode::INVALID;
-InstMode::inst_mode_t InstMode::inst_mode_roi  = InstMode::INVALID;
-InstMode::inst_mode_t InstMode::inst_mode_end  = InstMode::INVALID;
+InstMode::inst_mode_t InstMode::inst_mode_roi = InstMode::INVALID;
+InstMode::inst_mode_t InstMode::inst_mode_end = InstMode::INVALID;
 
 // Initial instrumentation mode
 InstMode::inst_mode_t InstMode::inst_mode = InstMode::INVALID;
 
-
-__attribute__((weak)) void
-InstMode::updateInstrumentationMode()
+__attribute__((weak)) void InstMode::updateInstrumentationMode()
 {
    LOG_PRINT_ERROR("%s: This version of this function should not be called", __FUNCTION__);
 }
 
-InstMode::inst_mode_t
-InstMode::fromString(const String str)
+InstMode::inst_mode_t InstMode::fromString(const String str)
 {
    if (str == "cache_only")
       return CACHE_ONLY;

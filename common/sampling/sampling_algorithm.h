@@ -15,16 +15,21 @@ class SamplingManager;
 
 class SamplingAlgorithm
 {
-protected:
+ protected:
    SamplingManager *m_sampling_manager;
-public:
-   SamplingAlgorithm(SamplingManager *sampling_manager) : m_sampling_manager(sampling_manager) {}
-   virtual ~SamplingAlgorithm() {}
+
+ public:
+   SamplingAlgorithm(SamplingManager *sampling_manager) : m_sampling_manager(sampling_manager)
+   {
+   }
+   virtual ~SamplingAlgorithm()
+   {
+   }
 
    virtual void callbackDetailed(SubsecondTime now) = 0;
    virtual void callbackFastForward(SubsecondTime now, bool in_warmup) = 0;
 
-   static SamplingAlgorithm* create(SamplingManager *sampling_manager);
+   static SamplingAlgorithm *create(SamplingManager *sampling_manager);
 };
 
 #endif /* __SAMPLING_ALGORITHM */

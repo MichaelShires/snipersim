@@ -5,9 +5,10 @@
 
 class InstrCountSampling : public SamplingProvider
 {
-public:
+ public:
    virtual void startSampling(SubsecondTime until)
-   {}
+   {
+   }
    virtual InstrumentLevel::Level requestedInstrumentation()
    {
       return InstrumentLevel::INSTR;

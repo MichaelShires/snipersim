@@ -1,65 +1,61 @@
-#include <iostream>
-#include <fstream>
-#include <stdlib.h>
-#include <syscall.h>
-#include <vector>
 #include "log2.h"
-#include <cstdio>
 #include <cassert>
-#include <unistd.h>
-#include <sys/types.h>
+#include <cstdio>
+#include <fstream>
+#include <iostream>
 #include <strings.h>
+#include <sys/types.h>
+#include <syscall.h>
+#include <unistd.h>
+#include <vector>
 // stat is not supported in Pin 3.0
 // #include <sys/stat.h>
-#include <sys/syscall.h>
-#include <string.h>
-#include <pthread.h>
 #include "intrabarrier_analysis.h"
 #include "intrabarrier_mtng.h"
 #include "pin.H"
+#include <pthread.h>
+#include <string.h>
+#include <sys/syscall.h>
 
 #if defined(SDE_INIT)
-#  include "sde-init.H"
-#  include "sde-control.H"
+#include "sde-control.H"
+#include "sde-init.H"
+// #  include "sde-tracing.H"
 #endif
 
-
-#include "globals.h"
-#include "threads.h"
-#include "recorder_control.h"
-#include "recorder_base.h"
-#include "syscall_modeling.h"
-#include "trace_rtn.h"
-#include "emulation.h"
-#include "sift_writer.h"
-#include "sift_assert.h"
-#include "pinboost_debug.h"
-#include "icountsniper.h"
 #include "../../include/sim_api.h"
+#include "emulation.h"
+#include "globals.h"
+#include "icountsniper.h"
+#include "pinboost_debug.h"
+#include "recorder_base.h"
+#include "recorder_control.h"
+#include "sift_assert.h"
+#include "sift_writer.h"
+#include "syscall_modeling.h"
+#include "threads.h"
+#include "trace_rtn.h"
 
 using namespace CONTROLLER;
 
-CONTROL_MANAGER * control_manager = NULL;
+CONTROL_MANAGER *control_manager = NULL;
 static CONTROLLER::CONTROL_MANAGER control("pinplay:");
 
 VOID Fini(INT32 code, VOID *v)
 {
-     thread_data[0].output->Magic(SIM_CMD_ROI_END, 0, 0);
-   for (unsigned int i = 0 ; i < max_num_threads ; i++)
-   {
-      if (thread_data[i].output)
-      {
+   thread_data[0].output->Magic(SIM_CMD_ROI_END, 0, 0);
+   for (unsigned int i = 0; i < max_num_threads; i++) {
+      if (thread_data[i].output) {
          closeFile(i);
       }
    }
 }
 void initMtr()
 {
-    mtr_enabled = true;
-    PinToolWarmup* warmup_tool = getWarmupTool();
-    warmup_tool->activate();
+   mtr_enabled = true;
+   PinToolWarmup *warmup_tool = getWarmupTool();
+   warmup_tool->activate();
 }
-
 
 VOID Detach(VOID *v)
 {
@@ -67,8 +63,7 @@ VOID Detach(VOID *v)
 
 BOOL followChild(CHILD_PROCESS childProcess, VOID *val)
 {
-   if (any_thread_in_detail)
-   {
+   if (any_thread_in_detail) {
       fprintf(stderr, "EXECV ignored while in ROI\n");
       return false; // Cannot fork/execv after starting ROI
    }
@@ -78,8 +73,7 @@ BOOL followChild(CHILD_PROCESS childProcess, VOID *val)
 
 VOID forkBefore(THREADID threadid, const CONTEXT *ctxt, VOID *v)
 {
-   if(thread_data[threadid].output)
-   {
+   if (thread_data[threadid].output) {
       child_app_id = thread_data[threadid].output->Fork();
    }
 }
@@ -93,101 +87,46 @@ VOID forkAfterInChild(THREADID threadid, const CONTEXT *ctxt, VOID *v)
    app_id = child_app_id;
    num_threads = 1;
    // Open new SIFT pipe for thread 0
-   thread_data[0].bbv = new Bbv(0);
+   thread_data[0].bbv = new OnlineBbv(0);
    openFile(0);
 }
 
 bool assert_ignore()
 {
-   // stat is not supported in Pin 3.0
-   // this code just check if the file exists or not
-   // struct stat st;
-   // if (stat((KnobOutputFile.Value() + ".sift_done").c_str(), &st) == 0)
-   //    return true;
-   // else
-   //    return false;
-   if(FILE *file = fopen((KnobOutputFile.Value() + ".sift_done").c_str(), "rb")){
-      fclose(file);
-      return true;
-   }
-   else{
-      return false;
-   } 
+   return false;
 }
 
-void __sift_assert_fail(__const char *__assertion, __const char *__file,
-                        unsigned int __line, __const char *__function)
-     __THROW
+static VOID Handler(EVENT_TYPE ev, VOID *v, CONTEXT *ctxt, VOID *ip, THREADID tid, BOOL bcast)
 {
-   if (assert_ignore())
-   {
-      // Timing model says it's done, ignore assert and pretend to have exited cleanly
-      exit(0);
+   switch (ev) {
+   case EVENT_START:
+      if (KnobVerbose.Value())
+         std::cerr << "[SIFT_RECORDER:" << app_id << ":" << tid << "] ROI Start" << std::endl;
+      in_roi = true;
+      setInstrumentationMode(Sift::ModeDetailed);
+      if (tid == 0)
+         thread_data[tid].output->Magic(SIM_CMD_ROI_START, 0, 0);
+      break;
+   case EVENT_STOP:
+      if (KnobVerbose.Value())
+         std::cerr << "[SIFT_RECORDER:" << app_id << ":" << tid << "] ROI Stop" << std::endl;
+      in_roi = false;
+      setInstrumentationMode(Sift::ModeIcount);
+      if (tid == 0)
+         thread_data[tid].output->Magic(SIM_CMD_ROI_END, 0, 0);
+      break;
+   default:
+      break;
    }
-   else
-   {
-      std::cerr << "[SIFT_RECORDER] " << __file << ":" << __line << ": " << __function
-                << ": Assertion `" << __assertion << "' failed." << std::endl;
-      abort();
-   }
-}
-
-INSTLIBSNIPER::ICOUNT icount;
-
-VOID Handler(CONTROLLER::EVENT_TYPE ev, VOID * v, CONTEXT * ctxt, VOID * ip, THREADID tid, BOOL bcast)
-{
-    PIN_GetLock(&output_lock, tid+1);
-
-    std::cout << "[CONTROLLER] tid: " << tid << " ";
-    std::cout << "ip: "  << ip << " " << icount.Count() << " " ;
-
-    switch(ev)
-    {
-        case CONTROLLER::EVENT_START:
-            std::cout << "Start" << endl;
-            break;
-
-        case CONTROLLER::EVENT_STOP:
-            std::cout << "Stop" << endl;
-            break;
-
-
-        case CONTROLLER::EVENT_THREADID:
-            std::cout << "ThreadID" << endl;
-            break;
-
-        default:
-            break;
-    }
-    PIN_ReleaseLock(&output_lock);
-   
-    switch(ev)
-    {
-        case CONTROLLER::EVENT_WARMUP_START:
-            handleMagic(tid, ctxt, SIM_CMD_USER, 0x0be0000f, 2);
-            break;
-
-        case CONTROLLER::EVENT_START:
-            handleMagic(tid, ctxt, SIM_CMD_USER, 0x0be0000f, 0);
-            break;
-
-        case CONTROLLER::EVENT_STOP:
-            handleMagic(tid, ctxt, SIM_CMD_USER, 0x0be0000f, 1);
-            break;
-
-        default:
-            break;
-    }
 }
 
 int main(int argc, char **argv)
 {
 #if defined(SDE_INIT)
-	sde_pin_init(argc,argv);
-	sde_init();
+   sde_pin_init(argc, argv);
+   sde_init();
 #else
-   if (PIN_Init(argc,argv))
-   {
+   if (PIN_Init(argc, argv)) {
       std::cerr << "Error, invalid parameters" << std::endl;
       std::cerr << KNOB_BASE::StringKnobSummary() << std::endl;
       exit(1);
@@ -195,14 +134,12 @@ int main(int argc, char **argv)
 #endif
    PIN_InitSymbols();
 
-   if (KnobMaxThreads.Value() > 0)
-   {
+   if (KnobMaxThreads.Value() > 0) {
       max_num_threads = KnobMaxThreads.Value();
    }
    init_global_bbv();
    size_t thread_data_size = max_num_threads * sizeof(*thread_data);
-   if (posix_memalign((void**)&thread_data, LINE_SIZE_BYTES, thread_data_size) != 0)
-   {
+   if (posix_memalign((void **)&thread_data, LINE_SIZE_BYTES, thread_data_size) != 0) {
       std::cerr << "Error, posix_memalign() failed" << std::endl;
       exit(1);
    }
@@ -216,58 +153,53 @@ int main(int argc, char **argv)
    fast_forward_target = KnobFastForwardTarget.Value();
    detailed_target = KnobDetailedTarget.Value();
 
-   if (KnobEmulateSyscalls.Value() || (!KnobUseROI.Value() && !KnobMPIImplicitROI.Value()))
-   {
+   if (KnobEmulateSyscalls.Value() || (!KnobUseROI.Value() && !KnobMPIImplicitROI.Value())) {
       if (app_id < 0)
          findMyAppId();
    }
-   if (fast_forward_target == 0 && !KnobUseROI.Value() && !KnobMPIImplicitROI.Value())
-   {
-	  // Start in detailed if there is no fast-forwarding or warming requested
+   if (fast_forward_target == 0 && !KnobUseROI.Value() && !KnobMPIImplicitROI.Value()) {
+      // Start in detailed if there is no fast-forwarding or warming requested
       in_roi = true;
       setInstrumentationMode(Sift::ModeDetailed);
       openFile(0);
    }
-   else if (KnobEmulateSyscalls.Value())
-   {
+   else if (KnobEmulateSyscalls.Value()) {
       openFile(0);
    }
 
-
-   thread_data[0].output->Magic(SIM_CMD_ROI_START, 0, 0);
+   if (thread_data[0].output)
+      thread_data[0].output->Magic(SIM_CMD_ROI_START, 0, 0);
    // When attaching with --pid, there could be a number of threads already running.
    // Manually call NewThread() because the normal method to start new thread pipes (SYS_clone)
    // will already have happened
-   if (PIN_GetInitialThreadCount() > 1)
-   {
+   if (PIN_GetInitialThreadCount() > 1) {
       sift_assert(thread_data[PIN_ThreadId()].output);
-      for (UINT32 i = 1 ; i < PIN_GetInitialThreadCount() ; i++)
-      {
+      for (UINT32 i = 1; i < PIN_GetInitialThreadCount(); i++) {
          thread_data[PIN_ThreadId()].output->NewThread();
       }
    }
 
 #ifdef PINPLAY
-   if (KnobReplayer.Value())
-   {
-      if (KnobEmulateSyscalls.Value())
-      {
+   if (KnobReplayer.Value()) {
+      if (KnobEmulateSyscalls.Value()) {
          std::cerr << "Error, emulating syscalls is not compatible with PinPlay replaying." << std::endl;
          exit(1);
       }
 
 #if defined(SDE_INIT)
-    // This is a replay-only tool (for now)
-    p_pinplay_engine = sde_tracing_get_pinplay_engine();
+      // This is a replay-only tool (for now)
+      // p_pinplay_engine = sde_tracing_get_pinplay_engine();
+      p_pinplay_engine = &pp_pinplay_engine;
+      p_pinplay_engine->Activate(argc, argv, false /*logger*/, KnobReplayer.Value());
 #else
-    p_pinplay_engine = &pp_pinplay_engine;
-    p_pinplay_engine->Activate(argc, argv, false /*logger*/, KnobReplayer);
+      p_pinplay_engine = &pp_pinplay_engine;
+      p_pinplay_engine->Activate(argc, argv, false /*logger*/, KnobReplayer.Value());
 #endif
    }
 #else
-   if (KnobReplayer.Value())
-   {
-      std::cerr << "Error, PinPlay support not compiled in. Please use a compatible pin kit when compiling." << std::endl;
+   if (KnobReplayer.Value()) {
+      std::cerr << "Error, PinPlay support not compiled in. Please use a compatible pin kit when compiling."
+                << std::endl;
       exit(1);
    }
 #endif
@@ -278,14 +210,12 @@ int main(int argc, char **argv)
    control.Activate();
    control_manager = &control;
 #endif
-   if (KnobVerbose.Value())
+   if (control_manager && KnobVerbose.Value())
       control_manager->RegisterHandler(Handler, 0, FALSE);
 
    icount.Activate();
-   if (KnobEmulateSyscalls.Value())
-   {
-      if (!KnobUseResponseFiles.Value())
-      {
+   if (KnobEmulateSyscalls.Value()) {
+      if (!KnobUseResponseFiles.Value()) {
          std::cerr << "Error, Response files are required when using syscall emulation." << std::endl;
          exit(1);
       }
@@ -305,8 +235,7 @@ int main(int argc, char **argv)
    PIN_AddDetachFunction(Detach, 0);
 
    PIN_AddFollowChildProcessFunction(followChild, 0);
-   if (KnobEmulateSyscalls.Value())
-   {
+   if (KnobEmulateSyscalls.Value()) {
       PIN_AddForkFunction(FPOINT_BEFORE, forkBefore, 0);
       PIN_AddForkFunction(FPOINT_AFTER_IN_CHILD, forkAfterInChild, 0);
    }
@@ -314,11 +243,11 @@ int main(int argc, char **argv)
    pinboost_register("SIFT_RECORDER", KnobDebug.Value());
 
    int64_t pacsim_version = KnobPacSimEnable.Value();
-   mtr_enabled = false; 
+   mtr_enabled = false;
    if (pacsim_version) {
-        std::cout << "[PacSim]: Pacsim is Enabled\n";
-        intrabarrier_mtng::activate( false) ;
-        //initMtr();
+      std::cout << "[PacSim]: Pacsim is Enabled\n";
+      intrabarrier_mtng::activate(false);
+      // initMtr();
    }
 
    PIN_StartProgram();

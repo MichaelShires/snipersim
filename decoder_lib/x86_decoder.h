@@ -69,6 +69,7 @@ class X86DecodedInst : public DecodedInst
   public:
     X86DecodedInst(Decoder* d, const uint8_t * code, size_t size, uint64_t address);
     xed_decoded_inst_t * get_xed_inst();
+    const xed_decoded_inst_t * get_xed_inst() const;
     
     virtual unsigned int inst_num_id() const override;
     virtual std::string disassembly_to_str() const override;
@@ -85,8 +86,9 @@ class X86DecodedInst : public DecodedInst
     virtual bool is_mem_pair() const override;
     virtual bool is_writeback() const override { return false; }
 
-  private:
     void set_disassembly();
+
+  private:
     xed_decoded_inst_t xed_inst;
 
 };

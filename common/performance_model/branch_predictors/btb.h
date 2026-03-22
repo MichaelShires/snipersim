@@ -14,16 +14,14 @@ class BranchTargetBuffer : BranchPredictor
    BranchPredictorReturnValue lookup(IntPtr ip, IntPtr target)
    {
 
-      BranchPredictorReturnValue ret = { 0, 0, 0, BranchPredictorReturnValue::InvalidBranch };
+      BranchPredictorReturnValue ret = {0, 0, 0, BranchPredictorReturnValue::InvalidBranch};
 
       return ret;
-
    }
 
    void update(bool predicted, bool actual, bool indirect, IntPtr ip, IntPtr target)
    {
    }
-
 };
 
 #endif /* BRANCH_TARGET_BUFFER_H */

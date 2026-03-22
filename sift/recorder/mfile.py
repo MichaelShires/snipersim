@@ -7,214 +7,96 @@
 
 import sys
 import os
-import re
-import copy
 import shutil
-import platform
+import subprocess
 
-# set the SDE_BUILD_KIT environment variable to point to the root directory
-# containing the sde package.
-# addpend the directories containing the mbuild package and the build_kit.py file
-# to the python path
+if not 'SNIPER_ROOT' in os.environ:
+    os.environ['SNIPER_ROOT'] = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-if not 'SDE_BUILD_KIT' in os.environ:
-    dir = os.path.dirname(os.path.abspath(__file__))
-    sde_bk_dir = os.path.dirname(os.path.dirname(os.path.dirname(dir)))
-    os.environ['SDE_BUILD_KIT'] = sde_bk_dir
-    sys.path.append(os.path.join(sde_bk_dir, 'pinkit', 'sde-example'))
-    sys.path.append(os.path.join(sde_bk_dir, 'pinkit', 'sde-example', 'mbuild'))
+sniper_root = os.environ['SNIPER_ROOT']
+sde_root = "/u/jrs6qe/opt/sde" # Use system SDE for build
+arch = "intel64"
 
-import mbuild
-import build_kit
+pin_root = os.path.join(sde_root, 'pinkit')
+pin_gpp = os.path.join(pin_root, arch, 'pinrt', 'bin', 'pin-g++')
 
+if not os.path.exists(pin_gpp):
+    print(f"Could not find pin-g++ at {pin_gpp}, falling back to g++")
+    pin_gpp = "g++"
 
-def add_link_libs(env):
-    # Support PIN CRT link
-    if env.on_linux():
-        env['LIBS'] += ' -lpinplay -lpin -lzlib -lbz2 -lsift'
-        # Add internal libs if exists
-        if os.path.exists(os.path.join(pinplay_link_dir,'libxml2'+env['LIBEXT'])):
-            env['LIBS'] += ' -larchxml -lxml2 '
+objdir = f"obj-{arch}"
+if not os.path.exists(objdir):
+    os.makedirs(objdir)
 
-    elif env.on_windows():
-        env['LIBS'] += ' libpinplay%(LIBEXT)s'
-        env['LIBS'] += ' bz2%(LIBEXT)s'
-        env['LIBS'] += ' zlib%(LIBEXT)s'
-        if os.path.exists(os.path.join(pinplay_link_dir,'xml2'+env['LIBEXT'])):
-            # Add internal libs if exists
-            env['LIBS'] += ' xml2%(LIBEXT)s'
-            env['LIBS'] += ' libarchxml%(LIBEXT)s'
+# Includes
+includes = [
+    f"-I{os.path.join(pin_root, 'source', 'include', 'pin')}",
+    f"-I{os.path.join(pin_root, 'source', 'include', 'pin', 'gen')}",
+    f"-I{os.path.join(pin_root, 'source', 'tools', 'PinPoints')}",
+    f"-I{os.path.join(pin_root, 'extras', 'components', 'include')}",
+    f"-I{os.path.join(pin_root, 'extras', f'xed-{arch}', 'include', 'xed')}",
+    f"-I{os.path.join(pin_root, 'pinplay', 'include')}",
+    f"-I{os.path.join(pin_root, 'source', 'tools', 'InstLib')}",
+    f"-I{os.path.join(pin_root, 'sde-example', 'include')}",
+    "-isystem", os.path.join(pin_root, arch, 'pinrt', 'include', 'adaptor'),
+    f"-I./sift",
+    f"-I{os.path.join(sniper_root, 'include')}",
+]
 
-    else:
-        mbuild.die('no supported OS')
+common_dir = os.path.join(sniper_root, "common")
+for item in os.listdir(common_dir):
+    d = os.path.join(common_dir, item)
+    if os.path.isdir(d):
+        includes.append(f"-I{d}")
+        # Add subdirectories like core/memory_subsystem
+        for subitem in os.listdir(d):
+            sd = os.path.join(d, subitem)
+            if os.path.isdir(sd):
+                includes.append(f"-I{sd}")
 
-env = mbuild.env_t()
+# Sources
+sources = [
+    'emulation.cc', 'globals.cc', 'papi.cc', 'pinboost_debug.cc',
+    'recorder_base.cc', 'recorder_control.cc', 'sift_recorder.cc',
+    'syscall_modeling.cc', 'threads.cc', 'trace_rtn.cc', 'mtng.cc',
+    'intrabarrier_mtng.cc', 'onlinebbv_count.cc', 'to_json.cc',
+    'bbv_count_cluster.cc', 'tool_warmup.cc', 'sift_warmup.cc',
+    'cond.cc', 'trietree.cc', 'intrabarrier_common.cc', 'pin_lock.cc'
+]
 
-build_kit.early_init(env,build_kit=True)
+cxxflags = [
+    "-DBIGARRAY_MULTIPLIER=1", "-DUSING_XED", "-DSDE_INIT", "-DPINPLAY",
+    "-DPIN_RT", "-D_LIBCPP_HAS_MUSL_LIBC", "-DPIN_DISABLE_CRT_REG_DEF",
+    "-fPIC", "-O2", "-g", "-Wall", "-Wno-unknown-pragmas",
+    "-Wno-unused-function", "-Wno-unused-value", "-Wno-dangling-pointer",
+    "-Wno-sign-compare", "-std=c++1z"
+]
 
-if env.on_windows():
-   # Add clang tools definitions
-   env['clang-cl']=True
-   clang_which = shutil.which('clang-cl.exe')
-   if clang_which != None and clang_which != '':
-       clang_path = clang_which[:clang_which.find('clang-cl.exe')]
-       compiler_path = '"'+os.path.join(clang_path,'clang-cl.exe')+'"'
-       linker_path = '"'+os.path.join(clang_path,'lld-link.exe')+'"'
-       mbuild.msgb("COMPILER_PATH",compiler_path)
-       mbuild.msgb("LINKER_PATH",linker_path)
-   env.parse_args({'shared':True,'cc':compiler_path,'cxx':compiler_path,'linker':linker_path})
-else:
-   env.parse_args({'shared':True})
+# Compile
+objs = []
+for src in sources:
+    obj = os.path.join(objdir, src.replace('.cc', '.o'))
+    cmd = [pin_gpp] + cxxflags + includes + ["-c", src, "-o", obj]
+    # print(" ".join(cmd))
+    subprocess.check_call(cmd)
+    objs.append(obj)
 
-build_kit.late_init(env)
+# Link
+toolname = os.path.join(objdir, "sde_sift_recorder.so")
+ldflags = [
+    "-shared", "-Wl,-Bsymbolic",
+    f"-Wl,--version-script={os.path.join(pin_root, 'source', 'include', 'pin', 'pintool.ver')}",
+    f"-L{os.path.join(pin_root, arch, 'lib')}",
+    f"-L{os.path.join(pin_root, 'extras', f'xed-{arch}', 'lib')}",
+    f"-L{os.path.join(pin_root, 'sde-example', 'lib', arch)}",
+    f"-L{os.path.join(pin_root, 'pinplay', arch)}",
+    "-L./sift/obj-intel64",
+    "-lpinplay", "-lsde", "-lsift", "-lbz2", "-lzlib", "-lpin", "-lpinrt-adaptor-static",
+    "-lxed", "-lpindwarf", "-ldwarf", "-lunwind-dynamic"
+]
 
-if 'clean' in env['targets']:
-    mbuild.remove_tree(env['build_dir'])
-    sys.exit(0)
-env['build_dir'] = 'obj-{0:s}'.format(env['pin_arch'])
-mbuild.cmkdir(env['build_dir'])
+cmd = [pin_gpp] + ldflags + objs + ["-o", toolname]
+print(" ".join(cmd))
+subprocess.check_call(cmd)
 
-# Determine architecture
-if env['host_cpu'] == 'x86-64':
-    env['arch'] = 'intel64'
-else:
-    env['arch'] = 'ia32'
-
-# Set include and link dirs
-pinplay_include_dir = os.path.join(os.environ['SDE_BUILD_KIT'],'pinkit','pinplay','include')
-instlib_include_dir = os.path.join(os.environ['SDE_BUILD_KIT'],'pinkit','source',
-                                                                'tools','InstLib')
-pinplay_link_dir = os.path.join(os.environ['SDE_BUILD_KIT'],'pinkit','pinplay',env['arch'])
-example_link_dir = os.path.join(os.environ['SDE_BUILD_KIT'], 'pinkit','sde-example',
-                                                             'lib',env['arch'])
-pin_lib_dir = os.path.join(os.environ['SDE_BUILD_KIT'],env['arch'],'pin_lib')
-pin_crt_dir = os.path.join(os.environ['SDE_BUILD_KIT'],'pinkit',env['arch'],'runtime','pincrt')
-
-####################################################
-# Start to collect info for the build
-#   by adding stuff to the dag.
-####################################################
-dag = mbuild.dag_t(env=env)
-
-
-# Tools
-tools = ['sde_sift_recorder']
-
-# Standalone programs
-programs = {}
-
-proj_dir=os.environ["SNIPER_ROOT"]
-# Always support pinplay
-mbuild.msgb('PINPLAY IS BEING USED')
-env.add_define('PINPLAY')
-env.add_include_dir(pinplay_include_dir)
-env.add_include_dir(instlib_include_dir)
-env.add_include_dir('./sift')
-
-env.add_include_dir(os.path.join(proj_dir,'./include/'))
-common_dir = os.path.join(proj_dir, "./common")
-items = os.listdir( common_dir)
-for item in items:
-    if  os.path.isdir( os.path.join(common_dir, item)):
-        env.add_include_dir(os.path.join(proj_dir,'./common/%s/'%item))
-#env.add_include_dir(os.path.join(proj_dir,'./common/misc'))
-#env.add_include_dir(os.path.join(proj_dir,'./common/system'))
-env.add_include_dir(os.path.join(proj_dir,'./common/core/memory_subsystem'))
-env.add_link_dir(pinplay_link_dir)
-env.add_link_dir(example_link_dir)
-add_link_libs(env)
-
-# Support PIN CRT
-env.add_link_dir(pin_lib_dir)
-env.add_link_dir(pin_crt_dir)
-env.add_link_dir('./sift/obj-intel64')
-if env.on_linux():
-    env['LINKFLAGS'] += ' -Wl,--hash-style=sysv '
-    env['LINKFLAGS'] += ' -Wl,--rpath,\$ORIGIN/../../../../%(arch)s/pin_lib:\$ORIGIN/../../../../%(arch)s/xed_lib:\$ORIGIN/pin_lib:\$ORIGIN/xed_lib'
-
-# Tools sources
-tool_sources = {}
-tool_sources['sde_sift_recorder'] =  [ 'emulation.cc','globals.cc','papi.cc','pinboost_debug.cc','recorder_base.cc','recorder_control.cc','sift_recorder.cc','syscall_modeling.cc','threads.cc','trace_rtn.cc','mtng.cc','intrabarrier_mtng.cc','onlinebbv_count.cc','to_json.cc','bbv_count_cluster.cc','tool_warmup.cc','sift_warmup.cc','cond.cc','trietree.cc','intrabarrier_common.cc','pin_lock.cc' ]
-
-# Programs sources
-programs_sources = {}
-
-# Build tools
-for tool in tools:
-    objs = []
-    for s in tool_sources[tool]:
-        if not os.path.exists(s):
-            mbuild.msgb('SKIP', 'tool %s was not found' %(s))
-            continue
-        if s.endswith('.cpp'):
-            cmd = dag.add(env, env.cxx_compile( s ))
-        elif s.endswith('.cc'):
-            cmd = dag.add(env, env.cxx_compile( s ))
-        elif s.endswith('.c'):
-            cmd = dag.add(env, env.cc_compile( s ))
-        elif s.endswith('.s'):
-            cmd = dag.add(env, env.cc_assemble( s ))
-        else:
-            mbuild.die("Do not know hot to compile file: %s" % (s))
-        objs.extend(cmd.targets)
-
-    # Support PIN CRT - add crtbeginS and crtendS objects
-    if not env.on_windows():
-        all_objs = [mbuild.join(pin_crt_dir,'crtbeginS.o')]
-        all_objs.extend(objs)
-        if not env.on_mac():
-            all_objs.append(mbuild.join(pin_crt_dir,'crtendS.o'))
-    else:
-        all_objs = [mbuild.join(pin_crt_dir,'crtbeginS.obj')]
-        all_objs.extend(objs)
-    objs = all_objs
-
-    toolname = tool + "%(pintool_suffix)s"
-
-    cmd2 = dag.add(env, env.dynamic_lib(objs, toolname, relocate=True))
-
-# Create environment for standalone as well
-# replace pin standalone lib
-env_sa = copy.deepcopy(env)
-env_sa['LIBS'] = env_sa['LIBS'].replace(' -lpin ',' -lsapin ')
-
-# Build programs
-for program in programs:
-    objs = []
-    for s in programs_sources[program]:
-        if not os.path.exists(s):
-            mbuild.msgb('SKIP', 'tool %s was not found' %(s))
-            continue
-        if s.endswith('.cpp'):
-            cmd = dag.add(env_sa, env.cxx_compile( s ))
-        elif s.endswith('.c'):
-            cmd = dag.add(env_sa, env.cc_compile( s ))
-        elif s.endswith('.s'):
-            cmd = dag.add(env_sa, env.cc_assemble( s ))
-        else:
-            mbuild.die("Do not know hot to compile file: %s" % (s))
-        objs.extend(cmd.targets)
-
-    # Support PIN CRT - add crtbegin and crtend objects for standalone
-    if not env_sa.on_windows():
-        all_objs = [mbuild.join(pin_crt_dir,'crtbegin.o')]
-        all_objs.extend(objs)
-        if not env_sa.on_mac():
-            all_objs.append(mbuild.join(pin_crt_dir,'crtend.o'))
-    else:
-        all_objs = [mbuild.join(pin_crt_dir,'crtbegin.obj')]
-        all_objs.extend(objs)
-    objs = all_objs
-
-    target = program + '.exe'
-    cmd2 = dag.add(env_sa, env_sa.link(objs, target, relocate=True))
-
-
-####################################################
-# Do the build based on the dag
-####################################################
-work_queue = mbuild.work_queue_t(env['jobs'])
-okay = work_queue.build(dag)
-if not okay:
-    mbuild.die("build failed")
-mbuild.msgb("SUCCESS")
+print("SUCCESS")

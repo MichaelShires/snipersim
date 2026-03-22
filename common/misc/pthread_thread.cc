@@ -1,8 +1,7 @@
 #include "pthread_thread.h"
 #include "log.h"
 
-PthreadThread::PthreadThread(ThreadFunc func, void *arg)
-   : m_data(func, arg)
+PthreadThread::PthreadThread(ThreadFunc func, void *arg) : m_data(func, arg)
 {
 }
 
@@ -15,7 +14,7 @@ PthreadThread::~PthreadThread()
 
 void *PthreadThread::spawnedThreadFunc(void *vp)
 {
-   FuncData *fd = (FuncData*) vp;
+   FuncData *fd = (FuncData *)vp;
    fd->func(fd->arg);
    return NULL;
 }
@@ -31,7 +30,7 @@ void PthreadThread::run()
 
 // Check if pin_thread.cc is included in the build and has
 // Thread::Create defined. If so, PthreadThread is not used.
-__attribute__((weak)) _Thread* _Thread::create(ThreadFunc func, void *param)
+__attribute__((weak)) _Thread *_Thread::create(ThreadFunc func, void *param)
 {
    return new PthreadThread(func, param);
 }

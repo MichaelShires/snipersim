@@ -8,11 +8,10 @@ LockFreeHash::~LockFreeHash()
 {
 }
 
-
 UInt64 LockFreeHash::bucket_size(UInt64 key)
 {
    UInt64 index = key % size;
-   Bucket& bucket = array[index];
+   Bucket &bucket = array[index];
    return bucket.size();
 }
 
@@ -32,10 +31,9 @@ bool LockFreeHash::insert(UInt64 key, UInt64 value)
    return res;
 }
 
-
 #ifdef DEBUG_LOCKFREE_HASH
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
    LockFreeHash hash(100);
    UInt64 ids[4] = {1001, 1050, 1011, 1099};
@@ -47,7 +45,6 @@ int main(int argc, char* argv[])
       assert(hash.find(ids[i]).first == true);
    cerr << "Test 1 passed" << endl;
 
-
    cerr << "Test 2 should fail in assertion" << endl;
    ids[3] = ids[0] + 100;
 
@@ -58,6 +55,5 @@ int main(int argc, char* argv[])
 
    return 0;
 }
-
 
 #endif

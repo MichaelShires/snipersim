@@ -10,21 +10,21 @@
 
 class ConditionVariable
 {
-   public:
-      ConditionVariable();
-      ~ConditionVariable();
+ public:
+   ConditionVariable();
+   ~ConditionVariable();
 
-      // must acquire lock before entering wait. will own lock upon exit.
-      void wait(Lock& _lock, UInt64 timeout_ns = 0);
-      void signal();
-      void broadcast();
+   // must acquire lock before entering wait. will own lock upon exit.
+   void wait(Lock &_lock, UInt64 timeout_ns = 0);
+   void signal();
+   void broadcast();
 
-   private:
-      int m_futx;
-      Lock m_lock;
-      #ifdef TIME_LOCKS
-      TotalTimer* _timer;
-      #endif
+ private:
+   int m_futx;
+   Lock m_lock;
+#ifdef TIME_LOCKS
+   TotalTimer *_timer;
+#endif
 };
 
 #endif // COND_H

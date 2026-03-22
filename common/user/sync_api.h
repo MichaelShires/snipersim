@@ -2,8 +2,8 @@
 #define SYNC_API_H
 #include <stdbool.h>
 
-#include "subsecond_time.h"
 #include "fixed_types.h"
+#include "subsecond_time.h"
 
 #ifdef __cplusplus
 extern "C" {

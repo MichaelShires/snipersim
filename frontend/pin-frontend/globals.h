@@ -2,6 +2,7 @@
 #define __GLOBALS_H
 
 #include "sift_format.h"
+#include <sys/syscall.h>
 
 #include "pin.H"
 #ifdef PINPLAY

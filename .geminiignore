@@ -1,0 +1,12 @@
+results/
+
+pin_kit/
+sde_kit/
+pinplay_kit/
+libtorch/
+xed_kit/
+mbuild/
+mcpat/
+build/
+results/
+

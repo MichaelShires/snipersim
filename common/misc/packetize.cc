@@ -4,7 +4,7 @@ UnstructuredBuffer::UnstructuredBuffer()
 {
 }
 
-const void* UnstructuredBuffer::getBuffer()
+const void *UnstructuredBuffer::getBuffer()
 {
    return m_chars.data();
 }
@@ -21,32 +21,32 @@ int UnstructuredBuffer::size()
 
 // put buffer
 
-UnstructuredBuffer& UnstructuredBuffer::operator<<(std::pair<const void*, int> buffer)
+UnstructuredBuffer &UnstructuredBuffer::operator<<(std::pair<const void *, int> buffer)
 {
    const void *buff = buffer.first;
    int size = buffer.second;
 
    assert(size >= 0);
-   put<UInt8>((UInt8*) buff, size);
+   put<UInt8>((UInt8 *)buff, size);
    return *this;
 }
 
 // get buffer
 
-UnstructuredBuffer& UnstructuredBuffer::operator>>(std::pair<void*, int> buffer)
+UnstructuredBuffer &UnstructuredBuffer::operator>>(std::pair<void *, int> buffer)
 {
    const void *buff = buffer.first;
    __attribute__((unused)) int size = buffer.second;
 
    assert(size >= 0);
-   __attribute__((unused)) bool res = get<UInt8>((UInt8*) buff, size);
+   __attribute__((unused)) bool res = get<UInt8>((UInt8 *)buff, size);
    assert(res == true);
    return *this;
 }
 
 #ifdef DEBUG_UNSTRUCTURED_BUFFER
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
    UnstructuredBuffer buff;
    UInt32 data1 = 1;
@@ -69,7 +69,6 @@ int main(int argc, char* argv[])
    char data4prime[] = "aaaaaaaaaaaa";
    buff << make_pair(data4, 12);
    buff >> make_pair(data4prime, 12);
-
 
    cout << data4prime << endl;
    assert(strcmp(data4prime, data4) == 0);

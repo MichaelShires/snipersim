@@ -1,13 +1,17 @@
 #ifndef SIM_THREAD_MANAGER_H
 #define SIM_THREAD_MANAGER_H
 
-#include "sim_thread.h"
 #include "core_thread.h"
+#include "sim_thread.h"
+#include "simulation_context.h"
+
+class Config;
+class Transport;
 
 class SimThreadManager
 {
-public:
-   SimThreadManager();
+ public:
+   SimThreadManager(SimulationContext *context);
    ~SimThreadManager();
 
    void spawnSimThreads();
@@ -15,13 +19,17 @@ public:
 
    void simThreadStartCallback();
    void simThreadExitCallback();
-   
-private:
+
+ private:
+   SimulationContext *m_context;
    SimThread *m_sim_threads;
    CoreThread *m_core_threads;
 
    Lock m_active_threads_lock;
    UInt32 m_active_threads;
+
+   Config *m_config;
+   Transport *m_transport;
 };
 
 #endif // SIM_THREAD_MANAGER

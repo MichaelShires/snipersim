@@ -1,0 +1,14 @@
+---
+Checks:          'clang-diagnostic-*,clang-analyzer-*,bugprone-*,modernize-*,performance-*,readability-*'
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'
+AnalyzeTemporaryDtors: false
+FormatStyle:     none
+CheckOptions:
+  - key:             readability-function-size.LineThreshold
+    value:           '200'
+  - key:             readability-identifier-naming.VariableCase
+    value:           lower_case
+  - key:             modernize-use-override.IgnoreDestructors
+    value:           'true'
+...

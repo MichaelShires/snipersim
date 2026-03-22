@@ -1,31 +1,30 @@
 #ifndef LOOP_BRANCH_PREDICTOR_H
 #define LOOP_BRANCH_PREDICTOR_H
 
-#include <vector>
 #include <stdint.h>
+#include <vector>
 
-#include "simulator.h"
 #include "branch_predictor.h"
 #include "branch_predictor_return_value.h"
 #include "saturating_predictor.h"
+#include "simulator.h"
 
 #define DEBUG 0
 
 #if DEBUG == 0
-# define debug_cout if (0) std::cout
+#define debug_cout                                                                                                     \
+   if (0)                                                                                                              \
+   std::cout
 #else
-# define debug_cout std::cout
+#define debug_cout std::cout
 #endif
 
 class LoopBranchPredictor
 {
 
-public:
-
+ public:
    LoopBranchPredictor(UInt32 entries, UInt32 tag_bitwidth, UInt32 ways)
-      : m_lru_use_count(0)
-      , m_num_ways(ways)
-      , m_ways(ways, Way(entries/ways, tag_bitwidth))
+       : m_lru_use_count(0), m_num_ways(ways), m_ways(ways, Way(entries / ways, tag_bitwidth))
    {
    }
 
@@ -42,27 +41,22 @@ public:
    {
 
       UInt32 index, tag;
-      BranchPredictorReturnValue ret = { 0, 0, 0, BranchPredictorReturnValue::InvalidBranch };
+      BranchPredictorReturnValue ret = {0, 0, 0, BranchPredictorReturnValue::InvalidBranch};
 
       gen_index_tag(ip, index, tag);
 
-      for (unsigned int w = 0 ; w < m_num_ways ; ++w )
-      {
+      for (unsigned int w = 0; w < m_num_ways; ++w) {
          // When we are enabled, and we hit, we can use the value even if the count isn't set to the limit
-         if ( m_ways[w].m_enabled[index]
-           && m_ways[w].m_tags[index] == tag )
-         {
+         if (m_ways[w].m_enabled[index] && m_ways[w].m_tags[index] == tag) {
             UInt32 count = m_ways[w].m_count[index];
             UInt32 limit = m_ways[w].m_limit[index];
 
             ret.hit = 1;
             // 000001 -> predict() == 0; 111110 -> predict() == 1
-            if (count == limit)
-            {
-               ret.prediction = ! m_ways[w].m_predictors[index].predict();
+            if (count == limit) {
+               ret.prediction = !m_ways[w].m_predictors[index].predict();
             }
-            else
-            {
+            else {
                ret.prediction = m_ways[w].m_predictors[index].predict();
             }
             // Save the lru data
@@ -85,10 +79,8 @@ public:
       // Start with way 0 as the least recently used
       lru_way = 0;
 
-      for (UInt32 w = 0 ; w < m_num_ways ; ++w )
-      {
-         if (m_ways[w].m_tags[index] == tag)
-         {
+      for (UInt32 w = 0; w < m_num_ways; ++w) {
+         if (m_ways[w].m_tags[index] == tag) {
 
             bool current_prediction = m_ways[w].m_predictors[index].predict();
             bool match = prediction_match(w, index, actual);
@@ -110,16 +102,14 @@ public:
             uint8_t same_direction_enabled = next_enabled;
 
             // Update the limit if we have mismatched
-            if ( ! match )
-            {
+            if (!match) {
                // Always update the counter on a mismatch
 
                debug_cout << "[SAME-DIRECTION] Mismatch detected" << std::endl;
 
                // If the new loop length is now shorter, update the limit with the new counter (loop length)
                // Reset the counter because we are starting a new loop
-               if (current_counter < current_limit)
-               {
+               if (current_counter < current_limit) {
                   debug_cout << "[SAME-DIRECTION] Mismatch: Shorter loop found" << std::endl;
 
                   same_direction_counter = 0;
@@ -128,17 +118,17 @@ public:
                // Otherwise, the loop length is now longer, increment the counter and the limit
                // Do not reset the counter yet
                // Since this loop is now longer, we should match sometime in the future
-               else
-               {
+               else {
                   same_direction_counter = current_counter + 1;
                   same_direction_limit = current_counter + 1;
                   same_direction_enabled = 0;
 
-                  debug_cout << "[SAME-DIRECTION] Mismatch: Longer loop found [C:L] [" << current_counter << ":" << current_limit << "] => [" << same_direction_counter << ":" << same_direction_limit << "]" << std::endl;
+                  debug_cout << "[SAME-DIRECTION] Mismatch: Longer loop found [C:L] [" << current_counter << ":"
+                             << current_limit << "] => [" << same_direction_counter << ":" << same_direction_limit
+                             << "]" << std::endl;
                }
             }
-            else
-            {
+            else {
                debug_cout << "[SAME-DIRECTION] Match detected" << std::endl;
 
                // On a match, we can continue as normal
@@ -158,8 +148,7 @@ public:
             //  and that this branch status was different than the type predicted.
             //  000001 -> predict() == 0; 111110 -> predict() == 1
             //  Example: For the 000001 case (0), we do not expect to see two 1's in a row.
-            if (previous_actual == actual && actual == !current_prediction)
-            {
+            if (previous_actual == actual && actual == !current_prediction) {
 
                debug_cout << "[CHANGE-DIRECTION] Detected!" << std::endl;
 
@@ -178,8 +167,7 @@ public:
                // Disable the entry since we have just started to look in another direction
                next_enabled = false;
             }
-            else
-            {
+            else {
 
                debug_cout << "[NO-CHANGE-DIR] Not Detected!" << std::endl;
 
@@ -191,18 +179,15 @@ public:
                //  processing.  If that is the case, continue as normal
                // Therefore, only reset the counters if we are not currently
                //  enabled.  Already enabled branches should continue as they are
-               if (previous_actual != actual && actual == !current_prediction)
-               {
-                  if (! current_enabled)
-                  {
+               if (previous_actual != actual && actual == !current_prediction) {
+                  if (!current_enabled) {
                      debug_cout << "[NO-CHANGE-DIR] Enabling entry" << std::endl;
                      next_enabled = true;
                      // At the same time, setup the count and limits correctly
                      next_counter = 0;
                      next_limit = current_limit;
                   }
-                  else
-                  {
+                  else {
                      debug_cout << "[NO-CHANGE-DIR] Entry already enabled" << std::endl;
 
                      // Here, we haven't see a direction change.
@@ -210,26 +195,24 @@ public:
                      next_enabled = same_direction_enabled;
                      next_counter = same_direction_counter;
                      next_limit = same_direction_limit;
-
                   }
                }
-               else
-               {
-               // We are continuing along the normal prediction path, simply update with the next state
+               else {
+                  // We are continuing along the normal prediction path, simply update with the next state
 
-                  debug_cout << "[NO-CHANGE-DIR] Updating entry with same direction [C:L] [" << current_counter << ":" << current_limit << "] => [" << same_direction_counter << ":" << same_direction_limit << "]" << std::endl;
+                  debug_cout << "[NO-CHANGE-DIR] Updating entry with same direction [C:L] [" << current_counter << ":"
+                             << current_limit << "] => [" << same_direction_counter << ":" << same_direction_limit
+                             << "]" << std::endl;
 
                   // Here, we haven't see a direction change.
                   // Use the state from the previous, same direction, section
                   next_enabled = same_direction_enabled;
                   next_counter = same_direction_counter;
                   next_limit = same_direction_limit;
-
                }
 
                // Do not update the actual predictor, since we are moving in the same loop direction
             }
-
 
             // Update state and LRU for our next branch
             m_ways[w].m_previous_actual[index] = actual;
@@ -240,8 +223,7 @@ public:
          }
 
          // Keep track of the LRU in case we do not have a tag match
-         if (m_ways[w].m_lru[index] < m_ways[lru_way].m_lru[index])
-         {
+         if (m_ways[w].m_lru[index] < m_ways[lru_way].m_lru[index]) {
             lru_way = w;
          }
       }
@@ -256,25 +238,16 @@ public:
       m_ways[lru_way].m_lru[index] = m_lru_use_count++;
       m_ways[lru_way].m_count[index] = 1;
       m_ways[lru_way].m_limit[index] = 1;
-
    }
 
-private:
-
+ private:
    class Way
    {
-   public:
-
+    public:
       Way(UInt32 entries, UInt32 tag_bitwidth)
-         : m_tags(entries, 0)
-         , m_previous_actual(entries, 0)
-         , m_enabled(entries, 0)
-         , m_predictors(entries, SaturatingPredictor<1>(0))
-         , m_lru(entries, 0)
-         , m_count(entries, 0)
-         , m_limit(entries, 0)
-         , m_num_entries(entries)
-         , m_tag_bitwidth(tag_bitwidth)
+          : m_tags(entries, 0), m_previous_actual(entries, 0), m_enabled(entries, 0),
+            m_predictors(entries, SaturatingPredictor<1>(0)), m_lru(entries, 0), m_count(entries, 0),
+            m_limit(entries, 0), m_num_entries(entries), m_tag_bitwidth(tag_bitwidth)
       {
          assert(tag_bitwidth <= 8);
       }
@@ -282,17 +255,16 @@ private:
       std::vector<uint8_t> m_tags;
       std::vector<uint8_t> m_previous_actual;
       std::vector<uint8_t> m_enabled;
-      std::vector<SaturatingPredictor<1> > m_predictors;
+      std::vector<SaturatingPredictor<1>> m_predictors;
       std::vector<UInt64> m_lru;
       std::vector<UInt32> m_count;
       std::vector<UInt32> m_limit;
       UInt32 m_num_entries;
       UInt32 m_tag_bitwidth;
-
    };
 
    // Pentium M-specific indexing and tag values
-   void gen_index_tag(IntPtr ip, UInt32& index, UInt32 &tag)
+   void gen_index_tag(IntPtr ip, UInt32 &index, UInt32 &tag)
    {
       index = (ip >> 4) & 0x3F;
       tag = (ip >> 10) & 0x3F;
@@ -307,11 +279,9 @@ private:
       UInt32 limit = m_ways[way].m_limit[index];
 
       // At our count limit
-      if (count == limit)
-      {
+      if (count == limit) {
          // Did we predict correctly?
-         if (prediction != actual)
-         {
+         if (prediction != actual) {
             debug_cout << "[PRED-MATCH] Predicted the Loop taken/not-taken limit" << std::endl;
             return true;
          }
@@ -319,8 +289,7 @@ private:
             return false;
       }
       // Not at our count limit
-      else
-      {
+      else {
          // Did we predict correctly?
          if (prediction == actual)
             return true;
@@ -332,7 +301,6 @@ private:
    UInt64 m_lru_use_count;
    UInt32 m_num_ways;
    std::vector<Way> m_ways;
-
 };
 
 #endif /* LOOP_BRANCH_PREDICTOR_H */

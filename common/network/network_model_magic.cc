@@ -1,28 +1,23 @@
-#include "simulator.h"
-#include "network.h"
 #include "network_model_magic.h"
-#include "memory_manager_base.h"
-#include "log.h"
 #include "dvfs_manager.h"
+#include "log.h"
+#include "memory_manager_base.h"
+#include "network.h"
+#include "simulator.h"
 
-NetworkModelMagic::NetworkModelMagic(Network *net, EStaticNetwork net_type) :
-   NetworkModel(net, net_type),
-   _enabled(false),
-   _num_packets(0),
-   _num_bytes(0),
-   _latency(Sim()->getDvfsManager()->getCoreDomain(getNetwork()->getCore()->getId()), 1)
-{ }
+NetworkModelMagic::NetworkModelMagic(Network *net, EStaticNetwork net_type)
+    : NetworkModel(net, net_type), _enabled(false), _num_packets(0), _num_bytes(0),
+      _latency(Sim()->getDvfsManager()->getCoreDomain(getNetwork()->getCore()->getId()), 1)
+{
+}
 
-void
-NetworkModelMagic::routePacket(const NetPacket &pkt, std::vector<Hop> &nextHops)
+void NetworkModelMagic::routePacket(const NetPacket &pkt, std::vector<Hop> &nextHops)
 {
    // A latency of '1'
-   if (pkt.receiver == NetPacket::BROADCAST)
-   {
+   if (pkt.receiver == NetPacket::BROADCAST) {
       UInt32 total_cores = Config::getSingleton()->getTotalCores();
 
-      for (SInt32 i = 0; i < (SInt32) total_cores; i++)
-      {
+      for (SInt32 i = 0; i < (SInt32)total_cores; i++) {
          Hop h;
          h.final_dest = i;
          h.next_dest = i;
@@ -31,8 +26,7 @@ NetworkModelMagic::routePacket(const NetPacket &pkt, std::vector<Hop> &nextHops)
          nextHops.push_back(h);
       }
    }
-   else
-   {
+   else {
       Hop h;
       h.final_dest = pkt.receiver;
       h.next_dest = pkt.receiver;
@@ -42,8 +36,7 @@ NetworkModelMagic::routePacket(const NetPacket &pkt, std::vector<Hop> &nextHops)
    }
 }
 
-void
-NetworkModelMagic::processReceivedPacket(NetPacket &pkt)
+void NetworkModelMagic::processReceivedPacket(NetPacket &pkt)
 {
    ScopedLock sl(_lock);
 
@@ -54,13 +47,13 @@ NetworkModelMagic::processReceivedPacket(NetPacket &pkt)
    else // Other Packet types
       requester = pkt.sender;
 
-   LOG_ASSERT_ERROR((requester >= 0) && (requester < (core_id_t) Config::getSingleton()->getTotalCores()),
-         "requester(%i)", requester);
+   LOG_ASSERT_ERROR((requester >= 0) && (requester < (core_id_t)Config::getSingleton()->getTotalCores()),
+                    "requester(%i)", requester);
 
-   if ( (!_enabled) || (requester >= (core_id_t) Config::getSingleton()->getApplicationCores()) )
+   if ((!_enabled) || (requester >= (core_id_t)Config::getSingleton()->getApplicationCores()))
       return;
 
    UInt32 pkt_length = getNetwork()->getModeledLength(pkt);
-   _num_packets ++;
+   _num_packets++;
    _num_bytes += pkt_length;
 }

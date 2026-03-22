@@ -6,18 +6,22 @@
 
 // Emulate 'enum class InstrumentLevel' because it is
 // unsupported in GCC 4.4
-namespace InstrumentLevel {
-   enum Level {
-      INSTR_WITH_BBVS,
-      INSTR,
-      NONE,
-   };
+namespace InstrumentLevel
+{
+enum Level
+{
+   INSTR_WITH_BBVS,
+   INSTR,
+   NONE,
+};
 };
 
 class SamplingProvider
 {
-public:
-   virtual ~SamplingProvider() {}
+ public:
+   virtual ~SamplingProvider()
+   {
+   }
    virtual void startSampling(SubsecondTime until) = 0;
    virtual int32_t registerSignal()
    {
@@ -26,7 +30,7 @@ public:
    }
    virtual InstrumentLevel::Level requestedInstrumentation() = 0;
 
-   static SamplingProvider* create();
+   static SamplingProvider *create();
 };
 
 #endif /* __SAMPLING_PROVIDER */

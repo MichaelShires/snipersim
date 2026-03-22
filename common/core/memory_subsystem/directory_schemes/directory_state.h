@@ -3,16 +3,16 @@
 
 class DirectoryState
 {
-   public:
-      enum dstate_t
-      {
-         UNCACHED = 0,
-         SHARED,
-         OWNED,
-         MODIFIED,
-         EXCLUSIVE,
-         NUM_DIRECTORY_STATES
-      };
+ public:
+   enum dstate_t
+   {
+      UNCACHED = 0,
+      SHARED,
+      OWNED,
+      MODIFIED,
+      EXCLUSIVE,
+      NUM_DIRECTORY_STATES
+   };
 };
 
 #endif /* __DIRECTORY_STATE_H__ */

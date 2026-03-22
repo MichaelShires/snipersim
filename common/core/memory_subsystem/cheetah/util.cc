@@ -1,19 +1,19 @@
 /************************************************************************
-* Copyright (C) 1989, 1990, 1991, 1992, 1993                            *
-*                   Rabin A. Sugumar and Santosh G. Abraham             *
-*                                                                       *
-* This software is distributed absolutely without warranty. You are     *
-* free to use and modify the software as you wish.  You are also free   *
-* to distribute the software as long as it is not for commercial gain,  *
-* you retain the above copyright notice, and you make clear what your   *
-* modifications were.                                                   *
-*                                                                       *
-* Send comments and bug reports to rabin@eecs.umich.edu                 *
-*                                                                       *
-* (c) 2013 Wim Heirman <wim@heirman.net>                                *
-*            Converted to C++ classes, use 64-bit data types            *
-*                                                                       *
-************************************************************************/
+ * Copyright (C) 1989, 1990, 1991, 1992, 1993                            *
+ *                   Rabin A. Sugumar and Santosh G. Abraham             *
+ *                                                                       *
+ * This software is distributed absolutely without warranty. You are     *
+ * free to use and modify the software as you wish.  You are also free   *
+ * to distribute the software as long as it is not for commercial gain,  *
+ * you retain the above copyright notice, and you make clear what your   *
+ * modifications were.                                                   *
+ *                                                                       *
+ * Send comments and bug reports to rabin@eecs.umich.edu                 *
+ *                                                                       *
+ * (c) 2013 Wim Heirman <wim@heirman.net>                                *
+ *            Converted to C++ classes, use 64-bit data types            *
+ *                                                                       *
+ ************************************************************************/
 
 /* Functions used by the simulation algorithms */
 
@@ -22,7 +22,7 @@
 
 #include "util.h"
 
-void fatal(const char* msg)
+void fatal(const char *msg)
 {
    fprintf(stderr, "[CHEETAH] Fatal error: %s\n", msg);
    exit(1);
@@ -35,19 +35,16 @@ void fatal(const char* msg)
  * Output: x^y
  * Side effects: None
  */
-int
-power(int x, int y)
+int power(int x, int y)
 {
-  int pwr = 1;
+   int pwr = 1;
 
-  while (y > 0)
-    {
+   while (y > 0) {
       pwr *= x;
       --y;
-    }
-  return pwr;
+   }
+   return pwr;
 }
-
 
 /*
  * From "Advanced C: tips and techniques", Paul and Gail Anderson
@@ -58,29 +55,26 @@ power(int x, int y)
  * Output: A pointer to the two dimensional array space
  * Side effects: None
  */
-uint64_t **
-idim2(int row, int col)
+uint64_t **idim2(int row, int col)
 {
-  int i;
-  uint64_t **prow, *pdata;
+   int i;
+   uint64_t **prow, *pdata;
 
-  pdata = (uint64_t *)calloc(row*col, sizeof (uint64_t));
-  if (!pdata)
-    fatal("out of virtual memory");
+   pdata = (uint64_t *)calloc(row * col, sizeof(uint64_t));
+   if (!pdata)
+      fatal("out of virtual memory");
 
-  prow = (uint64_t **)calloc(row, sizeof (uint64_t *));
-  if (!prow)
-    fatal("out of virtual memory");
+   prow = (uint64_t **)calloc(row, sizeof(uint64_t *));
+   if (!prow)
+      fatal("out of virtual memory");
 
-  for (i=0;i<row;i++)
-    {
-      prow [i] = pdata;
+   for (i = 0; i < row; i++) {
+      prow[i] = pdata;
       pdata += col;
-    }
+   }
 
-  return prow;
+   return prow;
 }
-
 
 /*
  * Free list handlers
@@ -88,29 +82,25 @@ idim2(int row, int col)
 
 static struct hash_table *head_free_list;
 
-void
-UHT_Add_to_free_list(struct hash_table *free_ptr)
+void UHT_Add_to_free_list(struct hash_table *free_ptr)
 {
-  free_ptr->nxt = head_free_list;
-  head_free_list = free_ptr;
+   free_ptr->nxt = head_free_list;
+   head_free_list = free_ptr;
 }
 
-struct hash_table *
-UHT_Get_from_free_list(void)
+struct hash_table *UHT_Get_from_free_list(void)
 
 {
-  struct hash_table *free_ptr;
+   struct hash_table *free_ptr;
 
-  if (head_free_list == NULL)
-    return NULL;
-  else
-    {
+   if (head_free_list == NULL)
+      return NULL;
+   else {
       free_ptr = head_free_list;
       head_free_list = head_free_list->nxt;
       return free_ptr;
-    }
+   }
 }
-
 
 /*
  * A left rotation. Adapted from the Sleator and Tarjan paper on Splay trees
@@ -120,27 +110,24 @@ UHT_Get_from_free_list(void)
  * Output: None
  * Side effects: Does a left rotation at the entry
  */
-void
-rotate_left(int y, struct tree_node **p_stack)
+void rotate_left(int y, struct tree_node **p_stack)
 {
-  int x,z;
+   int x, z;
 
-  z = y-1;
-  x = y+1;
-  if (z > 0)
-    {
+   z = y - 1;
+   x = y + 1;
+   if (z > 0) {
       if (p_stack[z]->lft == p_stack[y])
-   p_stack[z]->lft = p_stack[x];
+         p_stack[z]->lft = p_stack[x];
       else
-   p_stack[z]->rt = p_stack[x];
-    }
-  p_stack[y]->rt = p_stack[x]->lft;
-  p_stack[y]->rtwt -= p_stack[x]->rtwt + 1;
-  p_stack[x]->lft = p_stack[y];
-  p_stack[y] = p_stack[x];
-  p_stack[x] = p_stack[x+1];
+         p_stack[z]->rt = p_stack[x];
+   }
+   p_stack[y]->rt = p_stack[x]->lft;
+   p_stack[y]->rtwt -= p_stack[x]->rtwt + 1;
+   p_stack[x]->lft = p_stack[y];
+   p_stack[y] = p_stack[x];
+   p_stack[x] = p_stack[x + 1];
 }
-
 
 /*
  * A right rotation. Adapted from the Sleator and Tarjan paper on Splay trees
@@ -150,31 +137,28 @@ rotate_left(int y, struct tree_node **p_stack)
  * Output: None
  * Side effects: Does a right rotation at the entry
  */
-void
-rotate_right(int y, struct tree_node **p_stack)
+void rotate_right(int y, struct tree_node **p_stack)
 {
-  int x,z;
-  struct tree_node *t1, *t2, *t3;
+   int x, z;
+   struct tree_node *t1, *t2, *t3;
 
-  z = y-1;
-  x = y+1;
-  t1 = p_stack[x];
-  t2 = p_stack[y];
-  t3 = p_stack[z];
-  if (z>0)
-    {
+   z = y - 1;
+   x = y + 1;
+   t1 = p_stack[x];
+   t2 = p_stack[y];
+   t3 = p_stack[z];
+   if (z > 0) {
       if (t3->lft == t2)
-   t3->lft = t1;
+         t3->lft = t1;
       else
-   t3->rt = t1;
-    }
-  t2->lft = t1->rt;
-  t1->rt = t2;
-  t1->rtwt += t2->rtwt + 1;
-  p_stack[y] = t1;
-  p_stack[x] = p_stack[x+1];
+         t3->rt = t1;
+   }
+   t2->lft = t1->rt;
+   t1->rt = t2;
+   t1->rtwt += t2->rtwt + 1;
+   p_stack[y] = t1;
+   p_stack[x] = p_stack[x + 1];
 }
-
 
 /*
  * Adapted from the Sleator and Tarjan paper on Splay trees.
@@ -185,41 +169,36 @@ rotate_right(int y, struct tree_node **p_stack)
  * Output: None
  * Side effects: Does a spay on the tree
  */
-void
-splay(int at, struct tree_node **p_stack)
+void splay(int at, struct tree_node **p_stack)
 {
-  int x, px, gx;
+   int x, px, gx;
 
-  x = at;
-  px = at-1;
-  gx = at-2;
+   x = at;
+   px = at - 1;
+   gx = at - 2;
 
-  /* 'at' is a left child */
-  if (p_stack[x] == p_stack[px]->lft)
-    {
-      if (gx == 0)   /* zig */
-   rotate_right(1, p_stack);
-      else if (p_stack[px] == p_stack[gx]->lft){   /* zig-zig */
-   rotate_right(gx, p_stack);
-   rotate_right(gx, p_stack);
+   /* 'at' is a left child */
+   if (p_stack[x] == p_stack[px]->lft) {
+      if (gx == 0) /* zig */
+         rotate_right(1, p_stack);
+      else if (p_stack[px] == p_stack[gx]->lft) { /* zig-zig */
+         rotate_right(gx, p_stack);
+         rotate_right(gx, p_stack);
       }
-      else
-   {                               /* zig-zag */
-     rotate_right(px, p_stack);
-     rotate_left(gx, p_stack);
+      else { /* zig-zag */
+         rotate_right(px, p_stack);
+         rotate_left(gx, p_stack);
+      }
    }
-    }
-  /* 'at' is a right child */
-  else if (gx == 0)                              /* zig */
-    rotate_left(1, p_stack);
-  else if (p_stack[px] == p_stack[gx]->rt)
-    {         /* zig-zig */
+   /* 'at' is a right child */
+   else if (gx == 0) /* zig */
+      rotate_left(1, p_stack);
+   else if (p_stack[px] == p_stack[gx]->rt) { /* zig-zig */
       rotate_left(gx, p_stack);
       rotate_left(gx, p_stack);
-    }
-  else
-    {                                   /* zig-zag */
+   }
+   else { /* zig-zag */
       rotate_left(px, p_stack);
       rotate_right(gx, p_stack);
-    }
+   }
 }

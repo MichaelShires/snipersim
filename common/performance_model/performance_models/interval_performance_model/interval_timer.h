@@ -7,16 +7,17 @@
 
 #include <vector>
 
+#include "boost/tuple/tuple.hpp"
+#include "contention_model.h"
+#include "core.h"
+#include "dynamic_micro_op.h"
 #include "fixed_point.h"
 #include "windows.h"
-#include "dynamic_micro_op.h"
-#include "boost/tuple/tuple.hpp"
-#include "core.h"
-#include "contention_model.h"
 
 #define DEBUG_IT_INSN_PRINT 0
 
-enum StopDispatchReason {
+enum StopDispatchReason
+{
    STOP_DISPATCH_NO_REASON = 0,
    STOP_DISPATCH_WINDOW_EMPTY = 1,
    STOP_DISPATCH_DISPATCH_WIDTH = 2,
@@ -26,42 +27,44 @@ enum StopDispatchReason {
    STOP_DISPATCH_SIZE = 32,
 };
 
-#define ADD_STOP_DISPATCH_REASON(_new_reason, _original_reasons) ((StopDispatchReason)(((int)_new_reason) | (int)(_original_reasons)))
+#define ADD_STOP_DISPATCH_REASON(_new_reason, _original_reasons)                                                       \
+   ((StopDispatchReason)(((int)_new_reason) | (int)(_original_reasons)))
 
 String StopDispatchReasonStringHelper(StopDispatchReason r);
 String StopDispatchReasonString(StopDispatchReason r);
 
 class CoreModel;
 
-class IntervalTimer {
-public:
-
-   IntervalTimer(Core *core, PerformanceModel *perf, const CoreModel *core_model, int misprediction_penalty, int dispatch_width, int window_size, bool do_functional_unit_contention);
+class IntervalTimer
+{
+ public:
+   IntervalTimer(Core *core, PerformanceModel *perf, const CoreModel *core_model, int misprediction_penalty,
+                 int dispatch_width, int window_size, bool do_functional_unit_contention);
    ~IntervalTimer();
    void free(); // Early-delete of members
 
    // simulate() returns (instructions_executed, latency)
-   boost::tuple<uint64_t,uint64_t> simulate(const std::vector<DynamicMicroOp*>& insts);
+   boost::tuple<uint64_t, uint64_t> simulate(const std::vector<DynamicMicroOp *> &insts);
 
    // Update internal time after syncronization event
    // Since interval_timer currently has no notion of outside time, no need to do anything for now
    // NOTE: These events are supposed to be long-latency, so we may want to flush the windows here as well
-   void synchronize(uint64_t time) {}
+   void synchronize(uint64_t time)
+   {
+   }
 
-protected:
-
+ protected:
    // dispatchWindow() returns (instructions_executed, latency)
-   boost::tuple<uint64_t,uint64_t> dispatchWindow();
+   boost::tuple<uint64_t, uint64_t> dispatchWindow();
    uint32_t calculateCurrentDispatchRate();
-   void issueMemOp(Windows::WindowEntry& micro_op);
+   void issueMemOp(Windows::WindowEntry &micro_op);
    // dispatchInstruction() returns instruction_latency
-   uint64_t dispatchInstruction(Windows::WindowEntry& instruction, StopDispatchReason& continueDispatching);
-   void updateCriticalPath(Windows::WindowEntry& microOp, uint64_t& latency);
+   uint64_t dispatchInstruction(Windows::WindowEntry &instruction, StopDispatchReason &continueDispatching);
+   void updateCriticalPath(Windows::WindowEntry &microOp, uint64_t &latency);
    void blockWindow();
-   uint64_t getMaxProducerExecTime(Windows::WindowEntry& instruction);
+   uint64_t getMaxProducerExecTime(Windows::WindowEntry &instruction);
 
-private:
-
+ private:
    Core *m_core;
    const CoreModel *m_core_model;
 

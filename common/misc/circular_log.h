@@ -17,45 +17,54 @@
 
 class CircularLog
 {
-   public:
-      static void init(String filename);
-      static void enableCallbacks();
-      static void fini();
-      static void dump();
+ public:
+   static void init(String filename);
+   static void enableCallbacks();
+   static void fini();
+   static void dump();
 
-      static CircularLog *g_singleton;
+   static CircularLog *g_singleton;
 
-      CircularLog(String filename);
-      ~CircularLog();
+   CircularLog(String filename);
+   ~CircularLog();
 
-      void insert(const char* type, const char* msg, ...) __attribute__ ((format(printf, 3, 4)));
-      UInt64 getTime() const { return rdtsc() - m_time_zero; }
+   void insert(const char *type, const char *msg, ...) __attribute__((format(printf, 3, 4)));
+   UInt64 getTime() const
+   {
+      return rdtsc() - m_time_zero;
+   }
 
-   private:
-      typedef struct {
-         UInt64 time;
-         const char* type;
-         const char* msg;
-         UInt64 args[6];
-      } event_t;
+ private:
+   typedef struct
+   {
+      UInt64 time;
+      const char *type;
+      const char *msg;
+      UInt64 args[6];
+   } event_t;
 
-      static SInt64 hook_sigusr1(UInt64, UInt64) { dump(); return 0; }
+   static SInt64 hook_sigusr1(UInt64, UInt64)
+   {
+      dump();
+      return 0;
+   }
 
-      void writeLog();
-      void writeEntry(FILE *fp, int idx);
+   void writeLog();
+   void writeEntry(FILE *fp, int idx);
 
-      static const UInt64 BUFFER_SIZE = 1024*1024;
+   static const UInt64 BUFFER_SIZE = 1024 * 1024;
 
-      const String m_filename;
-      event_t* const m_buffer;
-      Lock m_lock;
-      UInt64 m_eventnum;
-      UInt64 m_time_zero;
+   const String m_filename;
+   event_t *const m_buffer;
+   Lock m_lock;
+   UInt64 m_eventnum;
+   UInt64 m_time_zero;
 };
 
-#define CLOG(type, ...) do { \
-      if (CircularLog::g_singleton) \
-         CircularLog::g_singleton->insert(type, __VA_ARGS__); \
-   } while(0)
+#define CLOG(type, ...)                                                                                                \
+   do {                                                                                                                \
+      if (CircularLog::g_singleton)                                                                                    \
+         CircularLog::g_singleton->insert(type, __VA_ARGS__);                                                          \
+   } while (0)
 
 #endif // __CIRCULAR_LOG_H

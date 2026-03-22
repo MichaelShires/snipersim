@@ -28,6 +28,6 @@ IntPtr emuClockGettime(THREADID thread_id, clockid_t clk_id, struct timespec *tp
 IntPtr emuGettimeofday(THREADID thread_id, struct timeval *tv, struct timezone *tz);
 void emuKmpReapMonitor(THREADID threadIndex, CONTEXT *ctxt);
 
-AFUNPTR getFunptr(CONTEXT* context, string func_name);
+AFUNPTR getFunptr(CONTEXT* context, std::string func_name);
 
 }

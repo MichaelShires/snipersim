@@ -3,10 +3,8 @@
 
 // MRU: Most Recently Used
 
-CacheSetMRU::CacheSetMRU(
-      CacheBase::cache_t cache_type,
-      UInt32 associativity, UInt32 blocksize) :
-   CacheSet(cache_type, associativity, blocksize)
+CacheSetMRU::CacheSetMRU(CacheBase::cache_t cache_type, UInt32 associativity, UInt32 blocksize)
+    : CacheSet(cache_type, associativity, blocksize)
 {
    m_lru_bits = new UInt8[m_associativity];
    for (UInt32 i = 0; i < m_associativity; i++)
@@ -15,30 +13,24 @@ CacheSetMRU::CacheSetMRU(
 
 CacheSetMRU::~CacheSetMRU()
 {
-   delete [] m_lru_bits;
+   delete[] m_lru_bits;
 }
 
-UInt32
-CacheSetMRU::getReplacementIndex(CacheCntlr *cntlr)
+UInt32 CacheSetMRU::getReplacementIndex(CacheCntlr *cntlr)
 {
    // Invalidations may mess up the LRU bits
 
-   for (UInt32 i = 0; i < m_associativity; i++)
-   {
-      if (!m_cache_block_info_array[i]->isValid())
-      {
+   for (UInt32 i = 0; i < m_associativity; i++) {
+      if (!m_cache_block_info_array[i]->isValid()) {
          updateReplacementIndex(i);
          return i;
       }
    }
 
    UInt32 target = 0;
-   while (target < m_associativity)
-   {
-      for (UInt32 i = 0; i < m_associativity; i++)
-      {
-         if (m_lru_bits[i] == target && isValidReplacement(i))
-         {
+   while (target < m_associativity) {
+      for (UInt32 i = 0; i < m_associativity; i++) {
+         if (m_lru_bits[i] == target && isValidReplacement(i)) {
             updateReplacementIndex(i);
             return i;
          }
@@ -49,13 +41,16 @@ CacheSetMRU::getReplacementIndex(CacheCntlr *cntlr)
    LOG_PRINT_ERROR("Error Finding LRU bits");
 }
 
-void
-CacheSetMRU::updateReplacementIndex(UInt32 accessed_index)
+void CacheSetMRU::updateReplacementIndex(UInt32 accessed_index)
 {
-   for (UInt32 i = 0; i < m_associativity; i++)
-   {
+   for (UInt32 i = 0; i < m_associativity; i++) {
       if (m_lru_bits[i] < m_lru_bits[accessed_index])
-         m_lru_bits[i] ++;
+         m_lru_bits[i]++;
    }
    m_lru_bits[accessed_index] = 0;
 }
+
+static ComponentRegistrar<CacheSet, String, core_id_t, CacheBase::cache_t, UInt32, UInt32, CacheSetInfo*> 
+   mru_registrar("mru", [](String cfgname, core_id_t core_id, CacheBase::cache_t cache_type, UInt32 associativity, UInt32 blocksize, CacheSetInfo *set_info) -> CacheSet* {
+      return new CacheSetMRU(cache_type, associativity, blocksize);
+   });

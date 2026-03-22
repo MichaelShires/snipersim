@@ -1,11 +1,11 @@
 #include "dynamic_instruction.h"
-#include "instruction.h"
 #include "allocator.h"
-#include "core.h"
 #include "branch_predictor.h"
+#include "core.h"
+#include "instruction.h"
 #include "performance_model.h"
 
-Allocator* DynamicInstruction::createAllocator()
+Allocator *DynamicInstruction::createAllocator()
 {
    return new TypedAllocator<DynamicInstruction, 1024>();
 }
@@ -30,7 +30,8 @@ SubsecondTime DynamicInstruction::getBranchCost(Core *core, bool *p_is_mispredic
    BranchPredictor *bp = perf->getBranchPredictor();
    const ComponentPeriod *period = core->getDvfsDomain();
 
-   bool is_mispredict = core->accessBranchPredictor(eip, branch_info.taken, branch_info.is_indirect, branch_info.target);
+   bool is_mispredict =
+       core->accessBranchPredictor(eip, branch_info.taken, branch_info.is_indirect, branch_info.target);
    UInt64 cost = is_mispredict ? bp->getMispredictPenalty() : 1;
 
    if (p_is_mispredict)
@@ -41,26 +42,20 @@ SubsecondTime DynamicInstruction::getBranchCost(Core *core, bool *p_is_mispredic
 
 void DynamicInstruction::accessMemory(Core *core)
 {
-   for(UInt8 idx = 0; idx < num_memory; ++idx)
-   {
-      if (memory_info[idx].executed && memory_info[idx].hit_where == HitWhere::UNKNOWN)
-      {
+   for (UInt8 idx = 0; idx < num_memory; ++idx) {
+      if (memory_info[idx].executed && memory_info[idx].hit_where == HitWhere::UNKNOWN) {
          MemoryResult res = core->accessMemory(
-            /*instruction.isAtomic()
-               ? (info->type == DynamicInstructionInfo::MEMORY_READ ? Core::LOCK : Core::UNLOCK)
-               :*/ Core::NONE, // Just as in pin/lite/memory_modeling.cc, make the second part of an atomic update implicit
-            memory_info[idx].dir == Operand::READ ? (instruction->isAtomic() ? Core::READ_EX : Core::READ) : Core::WRITE,
-            memory_info[idx].addr,
-            NULL,
-            memory_info[idx].size,
-            Core::MEM_MODELED_RETURN,
-            instruction->getAddress()
-         );
+             /*instruction.isAtomic()
+                ? (info->type == DynamicInstructionInfo::MEMORY_READ ? Core::LOCK : Core::UNLOCK)
+                :*/
+             Core::NONE, // Just as in pin/lite/memory_modeling.cc, make the second part of an atomic update implicit
+             memory_info[idx].dir == Operand::READ ? (instruction->isAtomic() ? Core::READ_EX : Core::READ)
+                                                   : Core::WRITE,
+             memory_info[idx].addr, NULL, memory_info[idx].size, Core::MEM_MODELED_RETURN, instruction->getAddress());
          memory_info[idx].latency = res.latency;
          memory_info[idx].hit_where = res.hit_where;
       }
-      else
-      {
+      else {
          memory_info[idx].latency = 1 * core->getDvfsDomain()->getPeriod(); // 1 cycle latency
          memory_info[idx].hit_where = HitWhere::PREDICATE_FALSE;
       }

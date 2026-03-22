@@ -96,7 +96,7 @@ else
 	endif
 endif
 
-ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+ROOT_DIR:=$(shell dirname "$(realpath $(lastword $(MAKEFILE_LIST)))")
 
 
 PINPLAY_HOME = $(PIN_ROOT)/extras/pinplay
@@ -139,7 +139,7 @@ sift/sift_reader.h: sift
 sift/libsift.a: sift/sift_reader.h $(wildcard sift/*.h) $(wildcard sift/*.cc)
 	$(MAKE) -C sift
 
-ifeq (,$(wildcard $(shell dirname $(shell dirname $(CONTROLLERLIB)))))
+ifeq (,$(wildcard $(shell dirname "$(shell dirname "$(CONTROLLERLIB)")")))
 $(OBJDIR)pin_frontend: $(OBJECTS) $(LINK_LIBS)
 else
 $(OBJDIR)pin_frontend: $(OBJECTS) $(LINK_LIBS) $(CONTROLLERLIB)

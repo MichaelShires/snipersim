@@ -4,7 +4,7 @@ import sys, os, getopt, subprocess, tarfile
 sys.path.append(os.path.join(os.path.dirname(__file__), 'tools'))
 import debugpin, run_sniper
 
-HOME = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0])))
+HOME = os.path.abspath(os.path.dirname(sys.argv[0]))
 
 
 def usage():
@@ -171,7 +171,10 @@ if use_pinplay == False and  os.path.isfile('%s/sift/recorder/obj-%s/sift_record
 # convert paths in config to absolute paths
 not_found = []
 for d in ('sde_home', 'pin_home', 'dynamorio_home'):
-  absdir = os.path.join(HOME, config[d])
+  if os.path.isabs(config[d]):
+    absdir = config[d]
+  else:
+    absdir = os.path.join(HOME, config[d])
   if not os.path.isdir(absdir):
     not_found.append('Cannot find %s %s, please check %s\n' % (d, absdir, configfile))
   else:
@@ -271,7 +274,24 @@ if frontend:
 else:
   if not use_pinplay:
     print('[RECORD-TRACE] Using the SDE frontend (sift/recorder)')
-    cmd = '%(sde_home)s/sde64 %(sde_arch)s -t64 %(HOME)s/sift/recorder/obj-%(arch)s/sde_sift_recorder.so -sniper:verbose %(value_verbose)d -sniper:debug %(gdb_screen)d -sniper:roi %(value_roi)d -sniper:roi-mpi %(value_roi_mpi)d -sniper:f %(fastforward)d -sniper:d %(detailed)d -sniper:b %(blocksize)d -sniper:o %(outputfile)s -sniper:e %(syscallemulation)d  -sniper:s %(siftcountoffset)d -sniper:r %(useresponsefiles)d  -sniper:pa %(value_pa)d -sniper:rtntrace  %(value_routine_tracing)d -sniper:stop %(stop_address)d %(pinballoptions)s %(extra_tool_args)s %(extrae)s ' % locals()
+    sde_bin = 'sde64'
+    # Try system SDE if it's new enough
+    import subprocess
+    try:
+        sde_ver_out = subprocess.check_output(['sde', '--version'], stderr=subprocess.STDOUT).decode('utf-8')
+        if 'Version:  10.' in sde_ver_out:
+            if arch == 'intel64':
+                sde_bin = 'sde64'
+            else:
+                sde_bin = 'sde'
+            sde_home = '' # Use from PATH
+    except:
+        pass
+    if sde_home:
+        sde_path = os.path.join(sde_home, sde_bin)
+    else:
+        sde_path = sde_bin
+    cmd = '%(sde_path)s %(sde_arch)s -t sde_sift_recorder.so -sniper:verbose %(value_verbose)d -sniper:debug %(gdb_screen)d -sniper:roi %(value_roi)d -sniper:roi-mpi %(value_roi_mpi)d -sniper:f %(fastforward)d -sniper:d %(detailed)d -sniper:b %(blocksize)d -sniper:o %(outputfile)s -sniper:e %(syscallemulation)d  -sniper:s %(siftcountoffset)d -sniper:r %(useresponsefiles)d  -sniper:pa %(value_pa)d -sniper:rtntrace  %(value_routine_tracing)d -sniper:stop %(stop_address)d %(pinballoptions)s %(extra_tool_args)s %(extrae)s ' % locals()
   else:
     print('[RECORD-TRACE] Using the Pin frontend (sift/recorder)')
     cmd = '%(pin_home)s/pin %(pinoptions)s -t %(HOME)s/sift/recorder/obj-%(arch)s/sift_recorder -sniper:verbose %(value_verbose)d -sniper:debug %(gdb_screen)d -sniper:roi %(value_roi)d -sniper:roi-mpi %(value_roi_mpi)d -sniper:f %(fastforward)d -sniper:d %(detailed)d -sniper:b %(blocksize)d -sniper:o %(outputfile)s -sniper:e %(syscallemulation)d -sniper:s %(siftcountoffset)d -sniper:r %(useresponsefiles)d -sniper:pa %(value_pa)d -sniper:rtntrace %(value_routine_tracing)d -sniper:stop %(stop_address)d %(pinballoptions)s %(extra_tool_args)s %(extrae)s ' % locals()

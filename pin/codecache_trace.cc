@@ -80,6 +80,7 @@ void printCodeCacheTrace(const SubsecondTime& time)
 void printCodeCacheStats(const SubsecondTime& time)
 {
    fprintf(ccstats, "%" PRIu64, time.getNS());
+   /*
    fprintf(ccstats, " %u", CODECACHE_CodeMemReserved());
    fprintf(ccstats, " %u", CODECACHE_DirectoryMemUsed());
    fprintf(ccstats, " %u", CODECACHE_CodeMemUsed());
@@ -89,6 +90,7 @@ void printCodeCacheStats(const SubsecondTime& time)
    fprintf(ccstats, " %u", CODECACHE_BlockSize());
    fprintf(ccstats, " %u", CODECACHE_NumTracesInCache());
    fprintf(ccstats, " %u", CODECACHE_NumExitStubsInCache());
+   */
    fprintf(ccstats, "\n");
 }
 
@@ -116,6 +118,7 @@ void initCodeCacheTracing()
 
    Sim()->getHooksManager()->registerHook(HookType::HOOK_PERIODIC, (HooksManager::HookCallbackFunc)codeCachePeriodicCallback, (UInt64)NULL);
 
+   /*
    //CODECACHE_AddCacheInitFunction(cacheInit, NULL);
    CODECACHE_AddCacheBlockFunction(newCacheBlock, NULL);
    CODECACHE_AddFullCacheFunction(fullCache, NULL);
@@ -126,4 +129,5 @@ void initCodeCacheTracing()
    CODECACHE_AddTraceUnlinkedFunction(traceUnlinked, NULL);
    CODECACHE_AddTraceInvalidatedFunction(traceInvalidated, NULL);
    CODECACHE_AddTraceInsertedFunction(traceInserted, NULL);
+   */
 }

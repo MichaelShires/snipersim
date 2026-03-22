@@ -1,5 +1,5 @@
-#ifndef BBV_COUNT_H
-#define BBV_COUNT_H
+#ifndef __FRONTEND_BBV_COUNT_H
+#define __FRONTEND_BBV_COUNT_H
 
 #define __STDC_LIMIT_MACROS
 #include <stdint.h>

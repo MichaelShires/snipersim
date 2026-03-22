@@ -1,5 +1,6 @@
 #include "x86_decoder.h"
 #include <iostream>
+#include <cstring>
 
 extern "C" 
 {
@@ -57,6 +58,8 @@ void X86Decoder::decode(DecodedInst * inst)
   res_decode = xed_decode(const_cast<xed_decoded_inst_t*>(xi), inst->get_code(), inst->get_size());
   assert(res_decode == XED_ERROR_NONE);
 
+  ((X86DecodedInst *)inst)->set_disassembly();
+  
   inst->set_already_decoded(true);
 }
 
@@ -109,8 +112,7 @@ unsigned int X86Decoder::num_memory_operands(const DecodedInst * inst)
 
 unsigned int X86Decoder::num_operands(const DecodedInst * inst)
 {   
-  const xed_inst_t *i = xed_decoded_inst_inst(
-              static_cast<const xed_decoded_inst_t*>(((X86DecodedInst *)inst)->get_xed_inst()));
+  const xed_inst_t *i = ((const X86DecodedInst *)inst)->get_xed_inst()->_inst;
 
   return xed_inst_noperands(i);
 }
@@ -156,8 +158,7 @@ bool X86Decoder::op_write_reg (const DecodedInst * inst, unsigned int idx)
 // Private function
 const xed_operand_t * X86Decoder::get_operand(const DecodedInst * inst, unsigned int idx)
 {
-  const xed_inst_t *i = xed_decoded_inst_inst(
-        static_cast<const xed_decoded_inst_t*>(((X86DecodedInst *)inst)->get_xed_inst()));
+  const xed_inst_t *i = ((const X86DecodedInst *)inst)->get_xed_inst()->_inst;
 
   return xed_inst_operand(i, idx);
 }
@@ -252,11 +253,9 @@ uint16_t X86Decoder::get_operand_size(const DecodedInst *ins)
 {
   uint16_t operand_size = 0;
     
-  const xed_inst_t *inst = xed_decoded_inst_inst(
-        static_cast<const xed_decoded_inst_t*>(((X86DecodedInst *)ins)->get_xed_inst()));
-  for(uint32_t idx = 0; idx < xed_inst_noperands(inst); ++idx)
+  for(uint32_t idx = 0; idx < num_operands(ins); ++idx)
   {
-    const xed_operand_t *op = xed_inst_operand(inst, idx);
+    const xed_operand_t *op = get_operand(ins, idx);
     xed_operand_enum_t name = xed_operand_name(op);
 
     if (xed_operand_is_register(name))
@@ -513,6 +512,11 @@ xed_decoded_inst_t * X86DecodedInst::get_xed_inst()
   return &xed_inst;
 }
 
+const xed_decoded_inst_t * X86DecodedInst::get_xed_inst() const
+{
+  return &xed_inst;
+}
+
 unsigned int X86DecodedInst::inst_num_id() const
 {
   return xed_decoded_inst_get_iclass(static_cast<const xed_decoded_inst_t*>(&(this->xed_inst)));
@@ -522,6 +526,7 @@ void X86DecodedInst::set_disassembly()
 {
   xed_syntax_enum_t s;
   char temp_buffer[64];
+  memset(temp_buffer, 0, sizeof(temp_buffer));
   
   // Choose the XED syntax
   switch(m_dec->get_syntax()){
@@ -541,7 +546,7 @@ void X86DecodedInst::set_disassembly()
   xed_format_context(s, (&(this->xed_inst)), temp_buffer, 
                       sizeof(temp_buffer) - 1, this->m_address, 0, 0);
   
-  m_disassembly.assign(temp_buffer, sizeof(temp_buffer));
+  m_disassembly.assign(temp_buffer);
 }
 
 std::string X86DecodedInst::disassembly_to_str() const

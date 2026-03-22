@@ -5,43 +5,46 @@
 
 #include <map>
 
+class Config;
+
 class Transport
 {
-public:
-   virtual ~Transport() { };
+ public:
+   virtual ~Transport() {};
 
    class Node
    {
-   public:
-      virtual ~Node() { }
+    public:
+      virtual ~Node()
+      {
+      }
 
       virtual void globalSend(SInt32 dest_proc, const void *buffer, UInt32 length) = 0;
       virtual void send(core_id_t dest, const void *buffer, UInt32 length) = 0;
-      virtual Byte* recv() = 0;
+      virtual Byte *recv() = 0;
       virtual bool query() = 0;
 
-   protected:
+    protected:
       core_id_t getCoreId();
       Node(core_id_t core_id);
 
-   private:
+    private:
       core_id_t m_core_id;
    };
 
-   static Transport* create();
-   static Transport* getSingleton();
+   static Transport *create(Config *config);
+   static Transport *getSingleton();
 
-   virtual Node* createNode(core_id_t core_id) = 0;
+   virtual Node *createNode(core_id_t core_id) = 0;
 
    virtual void barrier() = 0;
-   virtual Node* getGlobalNode() = 0; // for communication not linked to a core
+   virtual Node *getGlobalNode() = 0; // for communication not linked to a core
 
-protected:
+ protected:
    Transport();
 
-private:
+ private:
    static Transport *m_singleton;
 };
 
 #endif // TRANSPORT_H
-

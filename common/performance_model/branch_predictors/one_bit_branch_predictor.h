@@ -7,14 +7,14 @@
 
 class OneBitBranchPredictor : public BranchPredictor
 {
-public:
+ public:
    OneBitBranchPredictor(String name, core_id_t core_id, UInt32 size);
    ~OneBitBranchPredictor();
 
    bool predict(bool indirect, IntPtr ip, IntPtr target);
    void update(bool predicted, bool actual, bool indirect, IntPtr ip, IntPtr target);
 
-private:
+ private:
    std::vector<bool> m_bits;
 };
 

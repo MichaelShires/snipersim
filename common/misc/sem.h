@@ -5,23 +5,20 @@
 
 class Semaphore
 {
-   private:
-      int _count;
-      int _numWaiting;
-      int _futx;
-      Lock _lock;
+ private:
+   int _count;
+   int _numWaiting;
+   int _futx;
+   Lock _lock;
 
-   public:
-      Semaphore(int count);
-      Semaphore();
-      ~Semaphore();
+ public:
+   Semaphore(int count);
+   Semaphore();
+   ~Semaphore();
 
-      void wait();
-      void signal();
-      void broadcast();
+   void wait();
+   void signal();
+   void broadcast();
 };
 
 #endif
-
-
-
